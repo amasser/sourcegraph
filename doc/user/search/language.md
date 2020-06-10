@@ -201,6 +201,7 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
       </table>
 
 ## Expression
+
 <div name="railroad">
       <table class="railroad">
         <tbody>
@@ -210,41 +211,86 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
                 <tbody>
                   <tr class="railroad">
                     <td class="ts"></td>
-                    <td class="d"><code class="c">  <a href="#or-expression">or-expression</a>  </code></td>
+                    <td class="d"><code class="c"><a href="#search-pattern">search pattern</a></code></td>
                     <td class="te"></td>
                   </tr>
                   <tr class="railroad">
                     <td class="ls"></td>
-                    <td class="d"><code class="c">(<a href="#or-expression"> or-expression </a>)</code></td>
+                    <td class="d"><code class="c"><a href="#parameter">parameter</a></code></td>
                     <td class="le"></td>
                   </tr>
                 </tbody>
               </table>
             </td>
             <td class="d">
-              <table class="railroad">
-                <tbody>
-                  <tr class="railroad">
-                    <td class="ts"></td>
-                    <td class="d"></td>
-                    <td class="te"></td>
-                  </tr>
-                  <tr class="railroad">
-                    <td class="ls"></td>
-                    <td class="d"><code class="c">...</code></td>
-                    <td class="le"></td>
-                  </tr>
-                </tbody>
-              </table>
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="ts"></td>
+                            <td class="d"> </td>
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ls"></td>
+                            <td class="d"><code class="c">...</code></td>
+                            <td class="le"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="ts"></td>
+                            <td class="d"> </td>
+                            <td class="d"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ks"></td>
+                            <td class="d"><code class="c">AND</code></td>
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ls"></td>
+                            <td class="d"><code class="c">OR</code></td>
+                            <td class="le"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="d"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="d"><code class="c"><a href="#expression">expression</a></code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="le"></td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-A top-level expression is one or more or-subexpressions.
 
-Note that an or-subexpression might end up just being one or more operands for simple queries like <code>repo:gorilla/mux testroute</code>. It doesn't mean your query has to contain <code>or</code> operators, you can just skip those parts as you follow the diagram :-). Subexpressions of a query may be grouped by parentheses, which is useful if you do decide to use <code>or</code> or <code>and</code> operators.
+
+
 
 ## Or-expression
 
