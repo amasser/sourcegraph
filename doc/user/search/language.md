@@ -605,7 +605,7 @@ Search parameters allow you to narrow search queries and modify search behavior.
                   </tr>
                   <tr class="railroad">
                     <td class="ls"></td>
-                    <td class="d"><code class="c">-</code></td>
+                    <td class="d"><code class="c">–</code></td>
                     <td class="le"></td>
                   </tr>
                 </tbody>
@@ -761,7 +761,7 @@ Search a repository at a given revision. For example, a branch name, commit hash
                   </tr>
                   <tr class="railroad">
                     <td class="ls"></td>
-                    <td class="d"><code class="c">-</code></td>
+                    <td class="d"><code class="c">–</code></td>
                     <td class="le"></td>
                   </tr>
                 </tbody>
@@ -1152,7 +1152,7 @@ Only include results from the named group of repositories (defined by the server
                   </tr>
                   <tr class="railroad">
                     <td class="ls"></td>
-                    <td class="d"><code class="c">-</code></td>
+                    <td class="d"><code class="c">–</code></td>
                     <td class="le"></td>
                   </tr>
                 </tbody>
