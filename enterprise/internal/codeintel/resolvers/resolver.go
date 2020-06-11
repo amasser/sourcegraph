@@ -135,7 +135,7 @@ func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *graphqlbackend.L
 		opt.NextURL = &nextURL
 	}
 
-	return &lsifIndexConnectionResolver{store: r.store, opt: opt}, nil
+	return &lsifIndexConnectionResolver{resolver: &realLsifIndexConnectionResolver{store: r.store, opt: opt}}, nil
 }
 
 func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {
