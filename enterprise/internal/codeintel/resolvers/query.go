@@ -54,10 +54,24 @@ func (r *lsifQueryResolver) Definitions(ctx context.Context, args *graphqlbacken
 		}
 
 		if len(locations) > 0 {
+			var adjustedLocations []AdjustedLocation
+			for _, l := range locations {
+				adjustedCommit, adjustedRange, err := r.adjustLocation(ctx, l)
+				if err != nil {
+					return nil, err
+				}
+
+				adjustedLocations = append(adjustedLocations, AdjustedLocation{
+					location:       l,
+					adjustedCommit: adjustedCommit,
+					adjustedRange:  adjustedRange,
+				})
+			}
+
 			return &locationConnectionResolver{
 				repo:      r.repositoryResolver.Type(),
 				commit:    r.commit,
-				locations: locations,
+				locations: adjustedLocations,
 			}, nil
 		}
 	}
@@ -142,10 +156,24 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 		return nil, err
 	}
 
+	var adjustedLocations []AdjustedLocation
+	for _, l := range allLocations {
+		adjustedCommit, adjustedRange, err := r.adjustLocation(ctx, l)
+		if err != nil {
+			return nil, err
+		}
+
+		adjustedLocations = append(adjustedLocations, AdjustedLocation{
+			location:       l,
+			adjustedCommit: adjustedCommit,
+			adjustedRange:  adjustedRange,
+		})
+	}
+
 	return &locationConnectionResolver{
 		repo:      r.repositoryResolver.Type(),
 		commit:    r.commit,
-		locations: allLocations,
+		locations: adjustedLocations,
 		endCursor: endCursor,
 	}, nil
 }

@@ -12,10 +12,16 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
+type AdjustedLocation struct {
+	location       codeintelapi.ResolvedLocation
+	adjustedCommit string
+	adjustedRange  lsp.Range
+}
+
 type locationConnectionResolver struct {
 	repo      *types.Repo
 	commit    api.CommitID
-	locations []codeintelapi.ResolvedLocation
+	locations []AdjustedLocation
 	endCursor string
 }
 
@@ -28,12 +34,7 @@ func (r *locationConnectionResolver) Nodes(ctx context.Context) ([]graphqlbacken
 
 	var l []graphqlbackend.LocationResolver
 	for _, location := range r.locations {
-		adjustedCommit, adjustedRange, err := r.adjustLocation(ctx, location)
-		if err != nil {
-			return nil, err
-		}
-
-		treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.Dump.RepositoryID), adjustedCommit, location.Path)
+		treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.location.Dump.RepositoryID), location.adjustedCommit, location.location.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +43,8 @@ func (r *locationConnectionResolver) Nodes(ctx context.Context) ([]graphqlbacken
 			continue
 		}
 
-		l = append(l, graphqlbackend.NewLocationResolver(treeResolver, &adjustedRange))
+		ar := location.adjustedRange
+		l = append(l, graphqlbackend.NewLocationResolver(treeResolver, &ar))
 	}
 
 	return l, nil
@@ -64,8 +66,8 @@ func (r *locationConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil
 //
 // A non-nil error means the connection resolver was unable to load the diff between
 // the requested commit and location's commit.
-func (r *locationConnectionResolver) adjustLocation(ctx context.Context, location codeintelapi.ResolvedLocation) (string, lsp.Range, error) {
-	return adjustLocation(ctx, location.Dump.RepositoryID, location.Dump.Commit, location.Path, location.Range, r.repo, r.commit)
+func (r *lsifQueryResolver) adjustLocation(ctx context.Context, location codeintelapi.ResolvedLocation) (string, lsp.Range, error) {
+	return adjustLocation(ctx, location.Dump.RepositoryID, location.Dump.Commit, location.Path, location.Range, r.repositoryResolver.Type(), r.commit)
 }
 
 func adjustLocation(ctx context.Context, locationRepositoryID int, locationCommit, locationPath string, locationRange bundles.Range, repo *types.Repo, commit api.CommitID) (string, lsp.Range, error) {
