@@ -228,22 +228,6 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
                         <tr class="railroad">
                             <td class="ts"></td>
                             <td class="d"> </td>
-                            <td class="te"></td>
-                        </tr>
-                        <tr class="railroad">
-                            <td class="ls"></td>
-                            <td class="d"><code class="c">...</code></td>
-                            <td class="le"></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </td>
-            <td class="d">
-                <table class="railroad">
-                    <tbody>
-                        <tr class="railroad">
-                            <td class="ts"></td>
-                            <td class="d"> </td>
                             <td class="d"></td>
                         </tr>
                         <tr class="railroad">
@@ -283,194 +267,31 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
                     </tbody>
                 </table>
             </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-
-
-
-
-## Or-expression
-
-<div name="railroad">
-      <table class="railroad">
-        <tbody>
-          <tr class="railroad">
             <td class="d">
-              <code class="c"><a href="#and-expression">and-expression</a></code>
-            </td>
-            <td class="d">
-              <table class="railroad">
-                <tbody>
-                  <tr class="railroad">
-                    <td class="ts"></td>
-                    <td class="d"> </td>
-                    <td class="te"></td>
-                  </tr>
-                  <tr class="railroad">
-                    <td class="ls"></td>
-                    <td class="d">
-                      <table class="railroad">
-                        <tbody>
-                          <tr class="railroad">
-                            <td class="d">
-                              <table class="railroad">
-                                <tbody>
-                                  <tr class="railroad">
-                                    <td class="ts"></td>
-                                    <td class="d"><code class="c">  OR  </code></td>
-                                    <td class="te"></td>
-                                  </tr>
-                                  <tr class="railroad">
-                                    <td class="ls"></td>
-                                    <td class="d"><code class="c">  or  </code></td>
-                                    <td class="le"></td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                            <td class="d"><code class="c"><a href="#and-expression">and-expression</a></code></td>
-                            <td class="d">
-                              <table class="railroad">
-                                <tbody>
-                                  <tr class="railroad">
-                                    <td class="ts"></td>
-                                    <td class="d"> </td>
-                                    <td class="te"></td>
-                                  </tr>
-                                  <tr class="railroad">
-                                    <td class="ls"></td>
-                                    <td class="d"><code class="c">...</code></td>
-                                    <td class="le"></td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                    <td class="le"></td>
-                  </tr>
-                </tbody>
-              </table>
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="ts"></td>
+                            <td class="d"> </td>
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ls"></td>
+                            <td class="d"><code class="c">...</code></td>
+                            <td class="le"></td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-An or-expression is one or more and-subexpressions.
-
-## And-expression
-
-<div name="railroad">
-      <table class="railroad">
-        <tbody>
-          <tr class="railroad">
-            <td class="d">
-              <code class="c"><a href="#operand">operand</a></code>
-            </td>
-            <td class="d">
-              <table class="railroad">
-                <tbody>
-                  <tr class="railroad">
-                    <td class="ts"></td>
-                    <td class="d">&nbsp;</td>
-                    <td class="te"></td>
-                  </tr>
-                  <tr class="railroad">
-                    <td class="ls"></td>
-                    <td class="d">
-                      <table class="railroad">
-                        <tbody>
-                          <tr class="railroad">
-                            <td class="d">
-                              <table class="railroad">
-                                <tbody>
-                                  <tr class="railroad">
-                                    <td class="ts"></td>
-                                    <td class="d"><code class="c">&nbsp;&nbsp; AND &nbsp;&nbsp;</code></td>
-                                    <td class="te"></td>
-                                  </tr>
-                                  <tr class="railroad">
-                                    <td class="ls"></td>
-                                    <td class="d"><code class="c">&nbsp;&nbsp; and &nbsp;&nbsp;</code></td>
-                                    <td class="le"></td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                            <td class="d"><code class="c"><a href="#operand">operand</a></code></td>
-                            <td class="d">
-                              <table class="railroad">
-                                <tbody>
-                                  <tr class="railroad">
-                                    <td class="ts"></td>
-                                    <td class="d">&nbsp;</td>
-                                    <td class="te"></td>
-                                  </tr>
-                                  <tr class="railroad">
-                                    <td class="ls"></td>
-                                    <td class="d"><code class="c">...</code></td>
-                                    <td class="le"></td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                    <td class="le"></td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-An and-expression is one or more operands, and bind tigther to operands than <code>or</code> operators.
 
 For example, <code>foo or bar and baz</code> means <code>foo or (bar and baz)</code>.
 
-## Operand
-
-<div name="railroad">
-      <table class="railroad">
-        <tbody>
-          <tr class="railroad">
-            <td class="d">
-              <table class="railroad">
-                <tbody>
-                  <tr class="railroad">
-                    <td class="ts"></td>
-                    <td class="d"><code class="c"><a href="#search-pattern">search pattern</a></code></td>
-                    <td class="te"></td>
-                  </tr>
-                  <tr class="railroad">
-                    <td class="ks"></td>
-                    <td class="d"><code class="c"><a href="#parameter">parameter</a></code></td>
-                    <td class="ke"></td>
-                  </tr>
-                  <tr class="railroad">
-                    <td class="ls"></td>
-                    <td class="d"><code class="c"><a href="#expression">expression</a></code></td>
-                    <td class="le"></td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-Operands are the basic building blocks for search queries. Typical queries contain a search pattern and some parameters to narrow search. For example, <code>testroute repo:gorilla/mux</code>.
+Expressions are the basic building blocks for search queries. Typical queries contain a search pattern and some parameters to narrow search. For example, <code>testroute repo:gorilla/mux</code>.
 
 ## Search pattern
 <div name="railroad">
@@ -635,7 +456,7 @@ Operands are the basic building blocks for search queries. Typical queries conta
 Search parameters allow you to narrow search queries and modify search behavior.
 
 
-## Repo
+### Repo
 
 <div name="railroad">
       <table class="railroad">
@@ -713,7 +534,7 @@ Search repositories that match the regular expression.
 A <code>-</code> before <code>repo</code> excludes the repository.
 By default the repository will be searched at the <code>HEAD</code> commit of the default branch. You can optionally change the <a href="#revision">revision</a>.
 
-## Revision
+### Revision
 
 <div name="railroad">
       <table class="railroad">
@@ -791,7 +612,7 @@ By default the repository will be searched at the <code>HEAD</code> commit of th
 
 Search a repository at a given revision. For example, a branch name, commit hash, or git tag.
 
-## File
+### File
 
 <div name="railroad">
       <table class="railroad">
@@ -849,7 +670,7 @@ Search a repository at a given revision. For example, a branch name, commit hash
 
 Search files whose full path matches the regular expression. A <code>-</code> before <code>file</code> excludes the file from being searched.
 
-## Language
+### Language
 
 <div name="railroad">
       <table class="railroad">
@@ -888,7 +709,7 @@ Search files whose full path matches the regular expression. A <code>-</code> be
 
 Only search files in the specified programming language, like <code>typescript</code> or <code>python</code>.
 
-## Content
+### Content
 
 <div name="railroad">
       <table class="railroad">
@@ -908,7 +729,7 @@ Set the search pattern to search using a dedicated parameter.
 
 Useful, for example, when searching a string like <code>content:"repo:foo"</code> that may conflict with the syntax of parameters in this Sourcegraph language.
 
-## Type
+### Type
 
 <div name="railroad">
       <table class="railroad">
@@ -1025,7 +846,7 @@ Useful, for example, when searching a string like <code>content:"repo:foo"</code
 
 Set whether the search pattern should only conduct a search of a certain type (e.g., only files or repos), or to perform special commit or diff searches.
 
-## Case
+### Case
 
 <div name="railroad">
       <table class="railroad">
@@ -1059,7 +880,7 @@ Set whether the search pattern should only conduct a search of a certain type (e
 Set whether the search pattern should be treated case-sensitively.
 
 
-## Fork
+### Fork
 
 <div name="railroad">
       <table class="railroad">
@@ -1098,7 +919,7 @@ Set whether the search pattern should be treated case-sensitively.
 Set whether repository forks should be included (<code>yes</code>) or exclusively searched (<code>only</code>). Respository forks are excluded by default.
 
 
-## Archived
+### Archived
 
 <div name="railroad">
       <table class="railroad">
@@ -1136,7 +957,7 @@ Set whether repository forks should be included (<code>yes</code>) or exclusivel
 
 Set whether archived repositories should be included (<code>yes</code>) or exclusively searched (<code>only</code>). Archived repositories are excluded by default.
 
-## Repo group
+### Repo group
 
 <div name="railroad">
       <table class="railroad">
@@ -1182,7 +1003,7 @@ Set whether archived repositories should be included (<code>yes</code>) or exclu
 Only include results from the named group of repositories (defined by the server admin). Same as using <a href="#repo">repo</a> that matches all of the group’s repositories. Use <a href="#repo">repo</a> unless you know that the group exists.
 
 
-## Repo has file
+### Repo has file
 
 <div name="railroad">
       <table class="railroad">
@@ -1224,7 +1045,7 @@ Only include results from the named group of repositories (defined by the server
 
 Only include results from repositories that contain a matching file. This keyword is a pure filter, so it requires at least one other search term in the query. Note: this filter currently only works on text matches and file path matches.
 
-## Repo has commit after
+### Repo has commit after
 
 <div name="railroad">
       <table class="railroad">
@@ -1251,7 +1072,7 @@ Only include results from repositories that contain a matching file. This keywor
 Filter out stale repositories that don’t contain commits past the specified time frame. This parameter is experimental.
 
 
-## Count
+### Count
 
 <div name="railroad">
       <table class="railroad">
@@ -1277,7 +1098,7 @@ Filter out stale repositories that don’t contain commits past the specified ti
 
 Retrieve at least N results. By default, Sourcegraph stops searching early and returns if it finds a full page of results. This is desirable for most interactive searches. To wait for all results, or to see results beyond the first page, use the count: keyword with a larger N.
 
-## Timeout
+### Timeout
 
 <div name="railroad">
       <table class="railroad">
@@ -1303,7 +1124,7 @@ Retrieve at least N results. By default, Sourcegraph stops searching early and r
 
 Set a search timeout. The time value is a string like 10s or 100ms, which is parsed by the Go time package's <a href="https://golang.org/pkg/time/#ParseDuration">ParseDuration</a>. By default the timeout is set to 10 seconds, and the search will optimize for returning results as soon as possible. The timeout value cannot be set longer than 1 minute.
 
-## Visibility
+### Visibility
 
 <div name="railroad">
       <table class="railroad">
@@ -1342,7 +1163,7 @@ Set a search timeout. The time value is a string like 10s or 100ms, which is par
 Filter results to only public or private repositories. The default is to include both private and public repositories.
 
 
-## Pattern type
+### Pattern type
 
 <div name="railroad">
       <table class="railroad">
@@ -1499,7 +1320,7 @@ Any string, including whitespace, may be quoted with single `'` or double `"` qu
 Set parameters that apply only to commit and diff searches.
 
 
-## Author
+### Author
 
 <div name="railroad">
       <table class="railroad">
@@ -1525,7 +1346,7 @@ Set parameters that apply only to commit and diff searches.
 
 Include commits or diffs that are authored by the user.
 
-## Before
+### Before
 
 <div name="railroad">
       <table class="railroad">
@@ -1577,7 +1398,7 @@ Include results which have a commit date before the specified time frame.
 
 Example time values are <code>last thursday</code> or <code>november 1 2019</code>.
 
-## After
+### After
 
 <div name="railroad">
       <table class="railroad">
@@ -1627,7 +1448,7 @@ Include results which have a commit date before the specified time frame.
 
 Example time values are <code>last thursday</code> or <code>november 1 2019</code>.
 
-## Message
+### Message
 
 <div name="railroad">
       <table class="railroad">
