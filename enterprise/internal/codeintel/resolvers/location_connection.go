@@ -19,8 +19,6 @@ type AdjustedLocation struct {
 }
 
 type locationConnectionResolver struct {
-	repo      *types.Repo
-	commit    api.CommitID
 	locations []AdjustedLocation
 	endCursor string
 }
@@ -66,8 +64,8 @@ func (r *locationConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil
 //
 // A non-nil error means the connection resolver was unable to load the diff between
 // the requested commit and location's commit.
-func (r *lsifQueryResolver) adjustLocation(ctx context.Context, location codeintelapi.ResolvedLocation) (string, lsp.Range, error) {
-	return adjustLocation(ctx, location.Dump.RepositoryID, location.Dump.Commit, location.Path, location.Range, r.repositoryResolver.Type(), r.commit)
+func (r *realLsifQueryResolver) adjustLocation(ctx context.Context, location codeintelapi.ResolvedLocation) (string, lsp.Range, error) {
+	return adjustLocation(ctx, location.Dump.RepositoryID, location.Dump.Commit, location.Path, location.Range, r.repo, r.commit)
 }
 
 func adjustLocation(ctx context.Context, locationRepositoryID int, locationCommit, locationPath string, locationRange bundles.Range, repo *types.Repo, commit api.CommitID) (string, lsp.Range, error) {

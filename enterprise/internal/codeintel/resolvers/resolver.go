@@ -165,13 +165,13 @@ func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *graphqlbackend.Git
 		return nil, nil
 	}
 
-	return &lsifQueryResolver{
+	return &lsifQueryResolver{resolver: &realLsifQueryResolver{
 		store:               r.store,
 		bundleManagerClient: r.bundleManagerClient,
 		codeIntelAPI:        r.codeIntelAPI,
-		repositoryResolver:  args.Repository,
+		repo:                args.Repository.Type(),
 		commit:              args.Commit,
 		path:                args.Path,
 		uploads:             dumps,
-	}, nil
+	}}, nil
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
@@ -15,16 +16,17 @@ import (
 )
 
 type lsifQueryResolver struct {
+	resolver *realLsifQueryResolver
+}
+
+type realLsifQueryResolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
-
-	repositoryResolver *graphqlbackend.RepositoryResolver
-	// commit is the requested target commit
-	commit api.CommitID
-	path   string
-	// uploads are ordered by their commit distance from the target commit
-	uploads []store.Dump
+	repo                *types.Repo
+	commit              api.CommitID
+	path                string
+	uploads             []store.Dump
 }
 
 var _ graphqlbackend.GitBlobLSIFDataResolver = &lsifQueryResolver{}
@@ -38,6 +40,21 @@ func (r *lsifQueryResolver) ToGitBlobLSIFData() (graphqlbackend.GitBlobLSIFDataR
 }
 
 func (r *lsifQueryResolver) Definitions(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) (graphqlbackend.LocationConnectionResolver, error) {
+	locations, err := r.resolver.Definitions(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(locations) == 0 {
+		return &locationConnectionResolver{}, nil
+	}
+
+	return &locationConnectionResolver{
+		locations: locations,
+	}, nil
+}
+
+func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) ([]AdjustedLocation, error) {
 	for _, upload := range r.uploads {
 		// TODO(efritz) - we should also detect renames/copies on position adjustment
 		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
@@ -68,25 +85,33 @@ func (r *lsifQueryResolver) Definitions(ctx context.Context, args *graphqlbacken
 				})
 			}
 
-			return &locationConnectionResolver{
-				repo:      r.repositoryResolver.Type(),
-				commit:    r.commit,
-				locations: adjustedLocations,
-			}, nil
+			return adjustedLocations, nil
 		}
 	}
 
-	return &locationConnectionResolver{}, nil
+	return nil, nil
 }
 
 func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend.LSIFPagedQueryPositionArgs) (graphqlbackend.LocationConnectionResolver, error) {
+	locations, cursor, err := r.resolver.References(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return &locationConnectionResolver{
+		locations: locations,
+		endCursor: cursor,
+	}, nil
+}
+
+func (r *realLsifQueryResolver) References(ctx context.Context, args *graphqlbackend.LSIFPagedQueryPositionArgs) ([]AdjustedLocation, string, error) {
 	// Decode a map of upload ids to the next url that serves
 	// the new page of results. This may not include an entry
 	// for every upload if their result sets have already been
 	// exhausted.
 	nextURLs, err := readCursor(args.After)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// We need to maintain a symmetric map for the next page
@@ -98,7 +123,7 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 	for _, upload := range r.uploads {
 		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if !ok {
 			continue
@@ -110,7 +135,7 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 		}
 		if limit <= 0 {
 			// TODO(efritz) - check on defs too
-			return nil, errors.New("illegal limit")
+			return nil, "", errors.New("illegal limit")
 		}
 
 		rawCursor := ""
@@ -125,18 +150,18 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 
 		cursor, err := codeintelapi.DecodeOrCreateCursor(r.path, adjustedPosition.Line, adjustedPosition.Character, upload.ID, rawCursor, r.store, r.bundleManagerClient)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		locations, newCursor, hasNewCursor, err := r.codeIntelAPI.References(
 			ctx,
-			int(r.repositoryResolver.Type().ID),
+			int(r.repo.ID),
 			string(r.commit),
 			limit,
 			cursor,
 		)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		cx := ""
@@ -153,14 +178,14 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 
 	endCursor, err := makeCursor(newCursors)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	var adjustedLocations []AdjustedLocation
 	for _, l := range allLocations {
 		adjustedCommit, adjustedRange, err := r.adjustLocation(ctx, l)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		adjustedLocations = append(adjustedLocations, AdjustedLocation{
@@ -170,19 +195,26 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 		})
 	}
 
-	return &locationConnectionResolver{
-		repo:      r.repositoryResolver.Type(),
-		commit:    r.commit,
-		locations: adjustedLocations,
-		endCursor: endCursor,
-	}, nil
+	return adjustedLocations, endCursor, nil
 }
 
 func (r *lsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) (graphqlbackend.HoverResolver, error) {
+	text, lspRange, exists, err := r.resolver.Hover(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+
+	return &hoverResolver{text: text, lspRange: lspRange}, nil
+}
+
+func (r *realLsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) (string, lsp.Range, bool, error) {
 	for _, upload := range r.uploads {
 		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
 		if err != nil {
-			return nil, err
+			return "", lsp.Range{}, false, err
 		}
 		if !ok {
 			continue
@@ -191,7 +223,7 @@ func (r *lsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIF
 		// TODO(efritz) - codeintelapi should just return an lsp.Hover
 		text, rn, exists, err := r.codeIntelAPI.Hover(ctx, r.path, adjustedPosition.Line, adjustedPosition.Character, int(upload.ID))
 		if err != nil || !exists {
-			return nil, err
+			return "", lsp.Range{}, false, err
 		}
 
 		lspRange := convertRange(rn)
@@ -199,7 +231,7 @@ func (r *lsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIF
 		if text != "" {
 			adjustedRange, ok, err := r.adjustRange(ctx, upload.Commit, lspRange)
 			if err != nil {
-				return nil, err
+				return "", lsp.Range{}, false, err
 			}
 			if !ok {
 				// Failed to adjust range. This _might_ happen in cases where the LSIF range
@@ -210,20 +242,32 @@ func (r *lsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIF
 				continue
 			}
 
-			return &hoverResolver{text: text, lspRange: adjustedRange}, nil
+			return text, adjustedRange, true, nil
 		}
 	}
 
-	return nil, nil
+	return "", lsp.Range{}, false, nil
 }
 
 func (r *lsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbackend.LSIFDiagnosticsArgs) (graphqlbackend.DiagnosticConnectionResolver, error) {
+	diagnostics, totalCount, err := r.resolver.Diagnostics(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return &diagnosticConnectionResolver{
+		totalCount:  totalCount,
+		diagnostics: diagnostics,
+	}, nil
+}
+
+func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbackend.LSIFDiagnosticsArgs) ([]codeintelapi.ResolvedDiagnostic, int, error) {
 	limit := DefaultDiagnosticsPageSize
 	if args.First != nil {
 		limit = int(*args.First)
 	}
 	if limit <= 0 {
-		return nil, errors.New("illegal limit")
+		return nil, 0, errors.New("illegal limit")
 	}
 
 	totalCount := 0
@@ -236,25 +280,20 @@ func (r *lsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbacken
 
 		diagnostics, count, err := r.codeIntelAPI.Diagnostics(ctx, r.path, upload.ID, l, 0)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		totalCount += count
 		allDiagnostics = append(allDiagnostics, diagnostics...)
 	}
 
-	return &diagnosticConnectionResolver{
-		repo:        r.repositoryResolver.Type(),
-		commit:      r.commit,
-		totalCount:  totalCount,
-		diagnostics: allDiagnostics,
-	}, nil
+	return allDiagnostics, totalCount, nil
 }
 
 // adjustPosition adjusts the position denoted by `line` and `character` in the requested commit into an
 // LSP position in the upload commit. This method returns nil if no equivalent position is found.
-func (r *lsifQueryResolver) adjustPosition(ctx context.Context, uploadCommit string, line, character int32) (lsp.Position, bool, error) {
-	adjuster, err := newPositionAdjuster(ctx, r.repositoryResolver.Type(), string(r.commit), uploadCommit, r.path)
+func (r *realLsifQueryResolver) adjustPosition(ctx context.Context, uploadCommit string, line, character int32) (lsp.Position, bool, error) {
+	adjuster, err := newPositionAdjuster(ctx, r.repo, string(r.commit), uploadCommit, r.path)
 	if err != nil {
 		return lsp.Position{}, false, err
 	}
@@ -265,8 +304,8 @@ func (r *lsifQueryResolver) adjustPosition(ctx context.Context, uploadCommit str
 
 // adjustPosition adjusts the given range in the upload commit into an equivalent range in the requested
 // commit. This method returns nil if there is not an equivalent position for both endpoints of the range.
-func (r *lsifQueryResolver) adjustRange(ctx context.Context, uploadCommit string, lspRange lsp.Range) (lsp.Range, bool, error) {
-	adjuster, err := newPositionAdjuster(ctx, r.repositoryResolver.Type(), uploadCommit, string(r.commit), r.path)
+func (r *realLsifQueryResolver) adjustRange(ctx context.Context, uploadCommit string, lspRange lsp.Range) (lsp.Range, bool, error) {
+	adjuster, err := newPositionAdjuster(ctx, r.repo, uploadCommit, string(r.commit), r.path)
 	if err != nil {
 		return lsp.Range{}, false, err
 	}
