@@ -69,7 +69,7 @@ func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *graphqlbackend.L
 		opt.NextURL = &nextURL
 	}
 
-	return &lsifUploadConnectionResolver{store: r.store, opt: opt}, nil
+	return &lsifUploadConnectionResolver{resolver: &realLsifUploadConnectionResolver{store: r.store, opt: opt}}, nil
 }
 
 func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {

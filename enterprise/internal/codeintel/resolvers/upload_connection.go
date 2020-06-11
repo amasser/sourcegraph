@@ -15,17 +15,7 @@ import (
 )
 
 type lsifUploadConnectionResolver struct {
-	store store.Store
-
-	opt LSIFUploadsListOptions
-
-	// cache results because they are used by multiple fields
-	once               sync.Once
-	uploads            []store.Upload
-	repositoryResolver *graphqlbackend.RepositoryResolver
-	totalCount         *int
-	nextURL            string
-	err                error
+	resolver *realLsifUploadConnectionResolver
 }
 
 var _ graphqlbackend.LSIFUploadConnectionResolver = &lsifUploadConnectionResolver{}
@@ -40,100 +30,111 @@ type LSIFUploadsListOptions struct {
 }
 
 func (r *lsifUploadConnectionResolver) Nodes(ctx context.Context) ([]graphqlbackend.LSIFUploadResolver, error) {
-	uploads, repositoryResolver, _, _, err := r.compute(ctx)
-	if err != nil {
+	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
 
 	var l []graphqlbackend.LSIFUploadResolver
-	for _, lsifUpload := range uploads {
+	for _, lsifUpload := range r.resolver.uploads {
 		l = append(l, &lsifUploadResolver{
-			repositoryResolver: repositoryResolver,
-			lsifUpload:         lsifUpload,
+			lsifUpload: lsifUpload,
 		})
 	}
 	return l, nil
 }
 
 func (r *lsifUploadConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
-	_, _, count, _, err := r.compute(ctx)
-	if count == nil || err != nil {
+	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
+	if r.resolver.totalCount == nil {
+		return nil, nil
+	}
 
-	c := int32(*count)
+	c := int32(*r.resolver.totalCount)
 	return &c, nil
 }
 
 func (r *lsifUploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
-	_, _, _, nextURL, err := r.compute(ctx)
-	if err != nil {
+	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
 
-	if nextURL != "" {
-		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(nextURL))), nil
+	if r.resolver.nextURL != "" {
+		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(r.resolver.nextURL))), nil
 	}
 
 	return graphqlutil.HasNextPage(false), nil
 }
 
-func (r *lsifUploadConnectionResolver) compute(ctx context.Context) ([]store.Upload, *graphqlbackend.RepositoryResolver, *int, string, error) {
-	r.once.Do(func() {
-		var id int
-		if r.opt.RepositoryID != "" {
-			r.repositoryResolver, r.err = graphqlbackend.RepositoryByID(ctx, r.opt.RepositoryID)
-			if r.err != nil {
-				return
-			}
+type realLsifUploadConnectionResolver struct {
+	store store.Store
+	opt   LSIFUploadsListOptions
+	once  sync.Once
+	//
+	uploads    []store.Upload
+	totalCount *int
+	nextURL    string
+	err        error
+}
 
-			id = int(r.repositoryResolver.Type().ID)
-		}
-		query := ""
+func (r *realLsifUploadConnectionResolver) Compute(ctx context.Context) error {
+	r.once.Do(func() { r.err = r.compute(ctx) })
+	return r.err
+}
 
-		if r.opt.Query != nil {
-			query = *r.opt.Query
-		}
-
-		state := ""
-		if r.opt.State != nil {
-			state = strings.ToLower(*r.opt.State)
-		}
-
-		limit := DefaultUploadPageSize
-		if r.opt.Limit != nil {
-			limit = int(*r.opt.Limit)
-		}
-
-		offset := 0
-		if r.opt.NextURL != nil {
-			offset, _ = strconv.Atoi(*r.opt.NextURL)
-		}
-
-		uploads, totalCount, err := r.store.GetUploads(ctx, store.GetUploadsOptions{
-			RepositoryID: id,
-			State:        state,
-			Term:         query,
-			VisibleAtTip: r.opt.IsLatestForRepo != nil && *r.opt.IsLatestForRepo,
-			Limit:        limit,
-			Offset:       offset,
-		})
+func (r *realLsifUploadConnectionResolver) compute(ctx context.Context) error {
+	var id int
+	if r.opt.RepositoryID != "" {
+		repositoryResolver, err := graphqlbackend.RepositoryByID(ctx, r.opt.RepositoryID)
 		if err != nil {
-			r.err = err
-			return
+			return err
 		}
 
-		cursor := ""
-		if offset+len(uploads) < totalCount {
-			cursor = fmt.Sprintf("%d", offset+len(uploads))
-		}
+		id = int(repositoryResolver.Type().ID)
+	}
+	query := ""
 
-		us := uploads
+	if r.opt.Query != nil {
+		query = *r.opt.Query
+	}
 
-		r.uploads = us
-		r.nextURL = cursor
-		r.totalCount = &totalCount
+	state := ""
+	if r.opt.State != nil {
+		state = strings.ToLower(*r.opt.State)
+	}
+
+	limit := DefaultUploadPageSize
+	if r.opt.Limit != nil {
+		limit = int(*r.opt.Limit)
+	}
+
+	offset := 0
+	if r.opt.NextURL != nil {
+		offset, _ = strconv.Atoi(*r.opt.NextURL)
+	}
+
+	uploads, totalCount, err := r.store.GetUploads(ctx, store.GetUploadsOptions{
+		RepositoryID: id,
+		State:        state,
+		Term:         query,
+		VisibleAtTip: r.opt.IsLatestForRepo != nil && *r.opt.IsLatestForRepo,
+		Limit:        limit,
+		Offset:       offset,
 	})
+	if err != nil {
+		return err
+	}
 
-	return r.uploads, r.repositoryResolver, r.totalCount, r.nextURL, r.err
+	cursor := ""
+	if offset+len(uploads) < totalCount {
+		cursor = fmt.Sprintf("%d", offset+len(uploads))
+	}
+
+	us := uploads
+
+	r.uploads = us
+	r.nextURL = cursor
+	r.totalCount = &totalCount
+	return nil
 }
