@@ -11,8 +11,7 @@ import (
 )
 
 type lsifIndexResolver struct {
-	repositoryResolver *graphqlbackend.RepositoryResolver
-	lsifIndex          store.Index
+	lsifIndex store.Index
 }
 
 var _ graphqlbackend.LSIFIndexResolver = &lsifIndexResolver{}

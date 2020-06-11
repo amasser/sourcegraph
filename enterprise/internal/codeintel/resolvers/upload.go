@@ -11,8 +11,7 @@ import (
 )
 
 type lsifUploadResolver struct {
-	repositoryResolver *graphqlbackend.RepositoryResolver
-	lsifUpload         store.Upload
+	lsifUpload store.Upload
 }
 
 var _ graphqlbackend.LSIFUploadResolver = &lsifUploadResolver{}
