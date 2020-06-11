@@ -6,15 +6,13 @@ import (
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
-	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
 type diagnosticConnectionResolver struct {
 	repo        *types.Repo
-	commit      api.CommitID
 	totalCount  int
-	diagnostics []codeintelapi.ResolvedDiagnostic
+	diagnostics []AdjustedDiagnostic
 }
 
 var _ graphqlbackend.DiagnosticConnectionResolver = &diagnosticConnectionResolver{}
@@ -28,7 +26,6 @@ func (r *diagnosticConnectionResolver) Nodes(ctx context.Context) ([]graphqlback
 	for _, diagnostic := range r.diagnostics {
 		resolvers = append(resolvers, &diagnosticResolver{
 			repo:               r.repo,
-			commit:             r.commit,
 			diagnostic:         diagnostic,
 			collectionResolver: collectionResolver,
 		})

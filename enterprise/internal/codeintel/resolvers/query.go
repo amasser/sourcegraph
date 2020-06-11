@@ -10,6 +10,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/api"
@@ -256,12 +257,13 @@ func (r *lsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbacken
 	}
 
 	return &diagnosticConnectionResolver{
+		repo:        r.resolver.repo, // TODO - stash on the diagnostic instead?
 		totalCount:  totalCount,
 		diagnostics: diagnostics,
 	}, nil
 }
 
-func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbackend.LSIFDiagnosticsArgs) ([]codeintelapi.ResolvedDiagnostic, int, error) {
+func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbackend.LSIFDiagnosticsArgs) ([]AdjustedDiagnostic, int, error) {
 	limit := DefaultDiagnosticsPageSize
 	if args.First != nil {
 		limit = int(*args.First)
@@ -287,7 +289,26 @@ func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlba
 		allDiagnostics = append(allDiagnostics, diagnostics...)
 	}
 
-	return allDiagnostics, totalCount, nil
+	var adjustedDiagnostics []AdjustedDiagnostic
+	for _, d := range allDiagnostics {
+		clientRange := client.Range{
+			Start: client.Position{Line: d.Diagnostic.StartLine, Character: d.Diagnostic.EndLine},
+			End:   client.Position{Line: d.Diagnostic.StartCharacter, Character: d.Diagnostic.EndCharacter},
+		}
+
+		adjustedCommit, adjustedRange, err := adjustLocation(ctx, d.Dump.RepositoryID, d.Dump.Commit, d.Diagnostic.Path, clientRange, r.repo, r.commit)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		adjustedDiagnostics = append(adjustedDiagnostics, AdjustedDiagnostic{
+			diagnostic:     d,
+			adjustedCommit: adjustedCommit,
+			adjustedRange:  adjustedRange,
+		})
+	}
+
+	return adjustedDiagnostics, totalCount, nil
 }
 
 // adjustPosition adjusts the position denoted by `line` and `character` in the requested commit into an
