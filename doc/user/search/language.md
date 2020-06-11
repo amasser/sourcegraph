@@ -200,6 +200,138 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
         </tbody>
       </table>
 
+## Basic query
+
+<div name="railroad">
+      <table class="railroad">
+        <tbody>
+          <tr class="railroad">
+            <td class="d">
+              <table class="railroad">
+                <tbody>
+                  <tr class="railroad">
+                    <td class="ts"></td>
+                    <td class="d"><code class="c"><a href="#search-pattern">search pattern</a></code></td>
+                    <td class="te"></td>
+                  </tr>
+                  <tr class="railroad">
+                    <td class="ls"></td>
+                    <td class="d"><code class="c"><a href="#parameter">parameter</a></code></td>
+                    <td class="le"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="ts"></td>
+                            <td class="d"> </td>
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ls"></td>
+                            <td class="d"><code class="c">...</code></td>
+                            <td class="le"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+## Expression
+
+<div name="railroad">
+      <table class="railroad">
+        <tbody>
+          <tr class="railroad">
+            <td class="d">
+              <table class="railroad">
+                <tbody>
+                  <tr class="railroad">
+                    <td class="d"></td>
+                    <td class="d"><code class="c"><a href="#basic-query">basic query</a></code></td>
+                    <td class="d"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="ts"></td>
+                            <td class="d"> </td>
+                            <td class="d"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ks"></td>
+                            <td class="d"><code class="c">AND</code></td>
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ls"></td>
+                            <td class="d"><code class="c">OR</code></td>
+                            <td class="le"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="d"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="d"><code class="c"><a href="#basic-query">basic query</a></code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="d"></td>
+                            <td class="d"> </td>
+                            <td class="d"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ts"></td>
+                            <td class="d"> </td>
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="ls"></td>
+                            <td class="d"><code class="c">...</code></td>
+                            <td class="le"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+            <td class="d">
+                <table class="railroad">
+                    <tbody>
+                        <tr class="railroad">
+                            <td class="te"></td>
+                        </tr>
+                        <tr class="railroad">
+                            <td class="le"> </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+<!--
 ## Expression
 
 <div name="railroad">
@@ -287,7 +419,7 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
         </tbody>
       </table>
     </div>
-
+-->
 
 For example, <code>foo or bar and baz</code> means <code>foo or (bar and baz)</code>.
 
