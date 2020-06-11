@@ -331,7 +331,6 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
       </table>
     </div>
 
-<!--
 ## Expression
 
 <div name="railroad">
@@ -419,7 +418,6 @@ This page provides a complete visual breakdown of the Sourcegraph Search Query L
         </tbody>
       </table>
     </div>
--->
 
 For example, <code>foo or bar and baz</code> means <code>foo or (bar and baz)</code>.
 
