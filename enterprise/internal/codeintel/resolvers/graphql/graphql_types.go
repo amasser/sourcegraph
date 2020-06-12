@@ -12,87 +12,87 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
-type gqlUploadResolver struct {
+type UploadResolver struct {
 	upload store.Upload
 }
 
-func NewGraphQLUploadResolver(upload store.Upload) gql.LSIFUploadResolver {
-	return &gqlUploadResolver{upload: upload}
+func NewUploadResolver(upload store.Upload) gql.LSIFUploadResolver {
+	return &UploadResolver{upload: upload}
 }
 
-func (r *gqlUploadResolver) ID() graphql.ID            { return marshalLSIFUploadGQLID(int64(r.upload.ID)) }
-func (r *gqlUploadResolver) InputCommit() string       { return r.upload.Commit }
-func (r *gqlUploadResolver) InputRoot() string         { return r.upload.Root }
-func (r *gqlUploadResolver) IsLatestForRepo() bool     { return r.upload.VisibleAtTip }
-func (r *gqlUploadResolver) UploadedAt() gql.DateTime  { return gql.DateTime{Time: r.upload.UploadedAt} }
-func (r *gqlUploadResolver) State() string             { return strings.ToUpper(r.upload.State) }
-func (r *gqlUploadResolver) Failure() *string          { return r.upload.FailureMessage }
-func (r *gqlUploadResolver) StartedAt() *gql.DateTime  { return gql.DateTimeOrNil(r.upload.StartedAt) }
-func (r *gqlUploadResolver) FinishedAt() *gql.DateTime { return gql.DateTimeOrNil(r.upload.FinishedAt) }
-func (r *gqlUploadResolver) InputIndexer() string      { return r.upload.Indexer }
-func (r *gqlUploadResolver) PlaceInQueue() *int32      { return int32Ptr(r.upload.Rank) }
+func (r *UploadResolver) ID() graphql.ID            { return marshalLSIFUploadGQLID(int64(r.upload.ID)) }
+func (r *UploadResolver) InputCommit() string       { return r.upload.Commit }
+func (r *UploadResolver) InputRoot() string         { return r.upload.Root }
+func (r *UploadResolver) IsLatestForRepo() bool     { return r.upload.VisibleAtTip }
+func (r *UploadResolver) UploadedAt() gql.DateTime  { return gql.DateTime{Time: r.upload.UploadedAt} }
+func (r *UploadResolver) State() string             { return strings.ToUpper(r.upload.State) }
+func (r *UploadResolver) Failure() *string          { return r.upload.FailureMessage }
+func (r *UploadResolver) StartedAt() *gql.DateTime  { return gql.DateTimeOrNil(r.upload.StartedAt) }
+func (r *UploadResolver) FinishedAt() *gql.DateTime { return gql.DateTimeOrNil(r.upload.FinishedAt) }
+func (r *UploadResolver) InputIndexer() string      { return r.upload.Indexer }
+func (r *UploadResolver) PlaceInQueue() *int32      { return int32Ptr(r.upload.Rank) }
 
-func (r *gqlUploadResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
+func (r *UploadResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
 	return resolvePath(ctx, api.RepoID(r.upload.RepositoryID), r.upload.Commit, r.upload.Root)
 }
 
 //
 //
 
-type gqlIndexResolver struct {
+type IndexResolver struct {
 	index store.Index
 }
 
-func NewGraphQLIndexResolver(index store.Index) gql.LSIFIndexResolver {
-	return &gqlIndexResolver{index: index}
+func NewIndexResolver(index store.Index) gql.LSIFIndexResolver {
+	return &IndexResolver{index: index}
 }
 
-func (r *gqlIndexResolver) ID() graphql.ID            { return marshalLSIFIndexGQLID(int64(r.index.ID)) }
-func (r *gqlIndexResolver) InputCommit() string       { return r.index.Commit }
-func (r *gqlIndexResolver) QueuedAt() gql.DateTime    { return gql.DateTime{Time: r.index.QueuedAt} }
-func (r *gqlIndexResolver) State() string             { return strings.ToUpper(r.index.State) }
-func (r *gqlIndexResolver) Failure() *string          { return r.index.FailureMessage }
-func (r *gqlIndexResolver) StartedAt() *gql.DateTime  { return gql.DateTimeOrNil(r.index.StartedAt) }
-func (r *gqlIndexResolver) FinishedAt() *gql.DateTime { return gql.DateTimeOrNil(r.index.FinishedAt) }
-func (r *gqlIndexResolver) PlaceInQueue() *int32      { return int32Ptr(r.index.Rank) }
+func (r *IndexResolver) ID() graphql.ID            { return marshalLSIFIndexGQLID(int64(r.index.ID)) }
+func (r *IndexResolver) InputCommit() string       { return r.index.Commit }
+func (r *IndexResolver) QueuedAt() gql.DateTime    { return gql.DateTime{Time: r.index.QueuedAt} }
+func (r *IndexResolver) State() string             { return strings.ToUpper(r.index.State) }
+func (r *IndexResolver) Failure() *string          { return r.index.FailureMessage }
+func (r *IndexResolver) StartedAt() *gql.DateTime  { return gql.DateTimeOrNil(r.index.StartedAt) }
+func (r *IndexResolver) FinishedAt() *gql.DateTime { return gql.DateTimeOrNil(r.index.FinishedAt) }
+func (r *IndexResolver) PlaceInQueue() *int32      { return int32Ptr(r.index.Rank) }
 
-func (r *gqlIndexResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
+func (r *IndexResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
 	return resolvePath(ctx, api.RepoID(r.index.RepositoryID), r.index.Commit, "")
 }
 
 //
 //
 
-type gqlHoverResolver struct {
+type HoverResolver struct {
 	text     string
 	lspRange lsp.Range
 }
 
-func NewGraphQLHoverResolver(text string, lspRange lsp.Range) gql.HoverResolver {
-	return &gqlHoverResolver{text: text, lspRange: lspRange}
+func NewHoverResolver(text string, lspRange lsp.Range) gql.HoverResolver {
+	return &HoverResolver{text: text, lspRange: lspRange}
 }
 
-func (r *gqlHoverResolver) Markdown() gql.MarkdownResolver { return gql.NewMarkdownResolver(r.text) }
-func (r *gqlHoverResolver) Range() gql.RangeResolver       { return gql.NewRangeResolver(r.lspRange) }
+func (r *HoverResolver) Markdown() gql.MarkdownResolver { return gql.NewMarkdownResolver(r.text) }
+func (r *HoverResolver) Range() gql.RangeResolver       { return gql.NewRangeResolver(r.lspRange) }
 
 //
 //
 
-type gqlDiagnosticResolver struct {
+type DiagnosticResolver struct {
 	diagnostic         resolvers.AdjustedDiagnostic
 	collectionResolver *repositoryCollectionResolver
 }
 
-func NewGraphQLDiagnosticResolver(diagnostic resolvers.AdjustedDiagnostic, collectionResolver *repositoryCollectionResolver) gql.DiagnosticResolver {
-	return &gqlDiagnosticResolver{diagnostic: diagnostic, collectionResolver: collectionResolver}
+func NewDiagnosticResolver(diagnostic resolvers.AdjustedDiagnostic, collectionResolver *repositoryCollectionResolver) gql.DiagnosticResolver {
+	return &DiagnosticResolver{diagnostic: diagnostic, collectionResolver: collectionResolver}
 }
 
-func (r *gqlDiagnosticResolver) Severity() (*string, error) { return toSeverity(r.diagnostic.Severity) }
-func (r *gqlDiagnosticResolver) Code() (*string, error)     { return strPtr(r.diagnostic.Code), nil }
-func (r *gqlDiagnosticResolver) Source() (*string, error)   { return strPtr(r.diagnostic.Source), nil }
-func (r *gqlDiagnosticResolver) Message() (*string, error)  { return strPtr(r.diagnostic.Message), nil }
+func (r *DiagnosticResolver) Severity() (*string, error) { return toSeverity(r.diagnostic.Severity) }
+func (r *DiagnosticResolver) Code() (*string, error)     { return strPtr(r.diagnostic.Code), nil }
+func (r *DiagnosticResolver) Source() (*string, error)   { return strPtr(r.diagnostic.Source), nil }
+func (r *DiagnosticResolver) Message() (*string, error)  { return strPtr(r.diagnostic.Message), nil }
 
-func (r *gqlDiagnosticResolver) Location(ctx context.Context) (gql.LocationResolver, error) {
+func (r *DiagnosticResolver) Location(ctx context.Context) (gql.LocationResolver, error) {
 	return resolveLocation(
 		ctx,
 		r.collectionResolver,
