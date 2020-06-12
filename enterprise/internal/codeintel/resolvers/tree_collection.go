@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
@@ -16,7 +16,7 @@ type repositoryCollectionResolver struct {
 // resolve returns a GitTreeEntryResolver for the given repository, commit, and path. This will cache
 // the repository, commit, and path resolvers if they have been previously constructed with this same
 // struct instance. If the commit resolver cannot be constructed, a nil resolver is returned.
-func (r *repositoryCollectionResolver) resolve(ctx context.Context, repoID api.RepoID, commit, path string) (*graphqlbackend.GitTreeEntryResolver, error) {
+func (r *repositoryCollectionResolver) resolve(ctx context.Context, repoID api.RepoID, commit, path string) (*gql.GitTreeEntryResolver, error) {
 	commitCollectionResolver, err := r.resolveRepository(ctx, repoID)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (r *repositoryCollectionResolver) resolveRepository(ctx context.Context, re
 }
 
 type commitCollectionResolver struct {
-	repositoryResolver *graphqlbackend.RepositoryResolver
+	repositoryResolver *gql.RepositoryResolver
 
 	m                       sync.RWMutex
 	pathCollectionResolvers map[string]*pathCollectionResolver
@@ -88,7 +88,7 @@ func (r *commitCollectionResolver) resolveCommit(ctx context.Context, commit str
 
 	resolver := &pathCollectionResolver{
 		commitResolver: commitResolver,
-		pathResolvers:  map[string]*graphqlbackend.GitTreeEntryResolver{},
+		pathResolvers:  map[string]*gql.GitTreeEntryResolver{},
 	}
 
 	r.pathCollectionResolvers[commit] = resolver
@@ -96,15 +96,15 @@ func (r *commitCollectionResolver) resolveCommit(ctx context.Context, commit str
 }
 
 type pathCollectionResolver struct {
-	commitResolver *graphqlbackend.GitCommitResolver
+	commitResolver *gql.GitCommitResolver
 
 	m             sync.RWMutex
-	pathResolvers map[string]*graphqlbackend.GitTreeEntryResolver
+	pathResolvers map[string]*gql.GitTreeEntryResolver
 }
 
 // pathCollectionResolver returns a GitTreeEntryResolver with the given path. If the
 // commit resolver could not be constructed, a nil resolver is returned.
-func (r *pathCollectionResolver) resolvePath(ctx context.Context, path string) (*graphqlbackend.GitTreeEntryResolver, error) {
+func (r *pathCollectionResolver) resolvePath(ctx context.Context, path string) (*gql.GitTreeEntryResolver, error) {
 	r.m.RLock()
 	if resolver, ok := r.pathResolvers[path]; ok {
 		r.m.RUnlock()

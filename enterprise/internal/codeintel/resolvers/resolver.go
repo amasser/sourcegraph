@@ -7,7 +7,7 @@ import (
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/gitserver"
@@ -18,9 +18,9 @@ type Resolver struct {
 	resolver *realResolver
 }
 
-var _ graphqlbackend.CodeIntelResolver = &Resolver{}
+var _ gql.CodeIntelResolver = &Resolver{}
 
-func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) graphqlbackend.CodeIntelResolver {
+func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) gql.CodeIntelResolver {
 	return &Resolver{resolver: &realResolver{
 		store:               store,
 		bundleManagerClient: bundleManagerClient,
@@ -28,7 +28,7 @@ func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerCli
 	}}
 }
 
-func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (graphqlbackend.LSIFUploadResolver, error) {
+func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFUploadResolver, error) {
 	uploadID, err := unmarshalLSIFUploadGQLID(id)
 	if err != nil {
 		return nil, err
@@ -42,13 +42,13 @@ func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (graphqlba
 	return &lsifUploadResolver{lsifUpload: upload}, nil
 }
 
-func (r *Resolver) LSIFUploads(ctx context.Context, args *graphqlbackend.LSIFUploadsQueryArgs) (graphqlbackend.LSIFUploadConnectionResolver, error) {
-	return r.LSIFUploadsByRepo(ctx, &graphqlbackend.LSIFRepositoryUploadsQueryArgs{
+func (r *Resolver) LSIFUploads(ctx context.Context, args *gql.LSIFUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
+	return r.LSIFUploadsByRepo(ctx, &gql.LSIFRepositoryUploadsQueryArgs{
 		LSIFUploadsQueryArgs: args,
 	})
 }
 
-func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *graphqlbackend.LSIFRepositoryUploadsQueryArgs) (graphqlbackend.LSIFUploadConnectionResolver, error) {
+func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *gql.LSIFRepositoryUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
 	opt := LSIFUploadsListOptions{
 		RepositoryID:    args.RepositoryID,
 		Query:           args.Query,
@@ -70,7 +70,7 @@ func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *graphqlbackend.L
 	return &lsifUploadConnectionResolver{resolver: r.resolver.UploadConnectionResolver(opt)}, nil
 }
 
-func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {
+func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {
 	// 🚨 SECURITY: Only site admins may delete LSIF data for now
 	if err := backend.CheckCurrentUserIsSiteAdmin(ctx); err != nil {
 		return nil, err
@@ -85,10 +85,10 @@ func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*graphq
 		return nil, err
 	}
 
-	return &graphqlbackend.EmptyResponse{}, nil
+	return &gql.EmptyResponse{}, nil
 }
 
-func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (graphqlbackend.LSIFIndexResolver, error) {
+func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (gql.LSIFIndexResolver, error) {
 	indexID, err := unmarshalLSIFIndexGQLID(id)
 	if err != nil {
 		return nil, err
@@ -102,13 +102,13 @@ func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (graphqlbac
 	return &lsifIndexResolver{lsifIndex: index}, nil
 }
 
-func (r *Resolver) LSIFIndexes(ctx context.Context, args *graphqlbackend.LSIFIndexesQueryArgs) (graphqlbackend.LSIFIndexConnectionResolver, error) {
-	return r.LSIFIndexesByRepo(ctx, &graphqlbackend.LSIFRepositoryIndexesQueryArgs{
+func (r *Resolver) LSIFIndexes(ctx context.Context, args *gql.LSIFIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
+	return r.LSIFIndexesByRepo(ctx, &gql.LSIFRepositoryIndexesQueryArgs{
 		LSIFIndexesQueryArgs: args,
 	})
 }
 
-func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *graphqlbackend.LSIFRepositoryIndexesQueryArgs) (graphqlbackend.LSIFIndexConnectionResolver, error) {
+func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *gql.LSIFRepositoryIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
 	opt := LSIFIndexesListOptions{
 		RepositoryID: args.RepositoryID,
 		Query:        args.Query,
@@ -129,7 +129,7 @@ func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *graphqlbackend.L
 	return &lsifIndexConnectionResolver{resolver: r.resolver.IndexConnectionResolver(opt)}, nil
 }
 
-func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {
+func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {
 	// 🚨 SECURITY: Only site admins may delete LSIF data for now
 	if err := backend.CheckCurrentUserIsSiteAdmin(ctx); err != nil {
 		return nil, err
@@ -144,10 +144,10 @@ func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*graphql
 		return nil, err
 	}
 
-	return &graphqlbackend.EmptyResponse{}, nil
+	return &gql.EmptyResponse{}, nil
 }
 
-func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *graphqlbackend.GitBlobLSIFDataArgs) (graphqlbackend.GitBlobLSIFDataResolver, error) {
+func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (gql.GitBlobLSIFDataResolver, error) {
 	resolver, err := r.resolver.QueryResolver(ctx, args)
 	if err != nil || resolver == nil {
 		return nil, err
@@ -199,7 +199,7 @@ func (r *realResolver) DeleteIndexByID(ctx context.Context, id int) error {
 	return err
 }
 
-func (r *realResolver) QueryResolver(ctx context.Context, args *graphqlbackend.GitBlobLSIFDataArgs) (*realLsifQueryResolver, error) {
+func (r *realResolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (*realLsifQueryResolver, error) {
 	dumps, err := r.codeIntelAPI.FindClosestDumps(ctx, int(args.Repository.Type().ID), string(args.Commit), args.Path, args.ExactPath, args.ToolName)
 	if err != nil || len(dumps) == 0 {
 		return nil, err

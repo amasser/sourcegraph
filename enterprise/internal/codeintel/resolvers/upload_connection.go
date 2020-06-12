@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
@@ -18,7 +18,7 @@ type lsifUploadConnectionResolver struct {
 	resolver *realLsifUploadConnectionResolver
 }
 
-var _ graphqlbackend.LSIFUploadConnectionResolver = &lsifUploadConnectionResolver{}
+var _ gql.LSIFUploadConnectionResolver = &lsifUploadConnectionResolver{}
 
 type LSIFUploadsListOptions struct {
 	RepositoryID    graphql.ID
@@ -29,7 +29,7 @@ type LSIFUploadsListOptions struct {
 	NextURL         *string
 }
 
-func (r *lsifUploadConnectionResolver) Nodes(ctx context.Context) ([]graphqlbackend.LSIFUploadResolver, error) {
+func (r *lsifUploadConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFUploadResolver, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
@@ -61,8 +61,8 @@ func (r *lsifUploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlut
 	return graphqlutil.HasNextPage(false), nil
 }
 
-func resolveUploads(uploads []store.Upload) []graphqlbackend.LSIFUploadResolver {
-	var resolvers []graphqlbackend.LSIFUploadResolver
+func resolveUploads(uploads []store.Upload) []gql.LSIFUploadResolver {
+	var resolvers []gql.LSIFUploadResolver
 	for _, lsifUpload := range uploads {
 		resolvers = append(resolvers, &lsifUploadResolver{
 			lsifUpload: lsifUpload,
@@ -94,7 +94,7 @@ func (r *realLsifUploadConnectionResolver) Compute(ctx context.Context) error {
 func (r *realLsifUploadConnectionResolver) compute(ctx context.Context) error {
 	var id int
 	if r.opt.RepositoryID != "" {
-		repositoryResolver, err := graphqlbackend.RepositoryByID(ctx, r.opt.RepositoryID)
+		repositoryResolver, err := gql.RepositoryByID(ctx, r.opt.RepositoryID)
 		if err != nil {
 			return err
 		}

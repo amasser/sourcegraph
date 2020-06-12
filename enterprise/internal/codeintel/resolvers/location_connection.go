@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	"github.com/sourcegraph/sourcegraph/internal/api"
@@ -21,9 +21,9 @@ type locationConnectionResolver struct {
 	endCursor string
 }
 
-var _ graphqlbackend.LocationConnectionResolver = &locationConnectionResolver{}
+var _ gql.LocationConnectionResolver = &locationConnectionResolver{}
 
-func (r *locationConnectionResolver) Nodes(ctx context.Context) ([]graphqlbackend.LocationResolver, error) {
+func (r *locationConnectionResolver) Nodes(ctx context.Context) ([]gql.LocationResolver, error) {
 	return resolveLocations(ctx, r.locations)
 }
 
@@ -34,12 +34,12 @@ func (r *locationConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil
 	return graphqlutil.HasNextPage(false), nil
 }
 
-func resolveLocations(ctx context.Context, locations []AdjustedLocation) ([]graphqlbackend.LocationResolver, error) {
+func resolveLocations(ctx context.Context, locations []AdjustedLocation) ([]gql.LocationResolver, error) {
 	collectionResolver := &repositoryCollectionResolver{
 		commitCollectionResolvers: map[api.RepoID]*commitCollectionResolver{},
 	}
 
-	var resovledLocations []graphqlbackend.LocationResolver
+	var resovledLocations []gql.LocationResolver
 	for _, location := range locations {
 		treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.location.Dump.RepositoryID), location.adjustedCommit, location.location.Path)
 		if err != nil {
@@ -51,7 +51,7 @@ func resolveLocations(ctx context.Context, locations []AdjustedLocation) ([]grap
 		}
 
 		ar := location.adjustedRange
-		resovledLocations = append(resovledLocations, graphqlbackend.NewLocationResolver(treeResolver, &ar))
+		resovledLocations = append(resovledLocations, gql.NewLocationResolver(treeResolver, &ar))
 	}
 
 	return resovledLocations, nil

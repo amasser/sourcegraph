@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
@@ -18,7 +18,7 @@ type lsifIndexConnectionResolver struct {
 	resolver *realLsifIndexConnectionResolver
 }
 
-var _ graphqlbackend.LSIFIndexConnectionResolver = &lsifIndexConnectionResolver{}
+var _ gql.LSIFIndexConnectionResolver = &lsifIndexConnectionResolver{}
 
 type LSIFIndexesListOptions struct {
 	RepositoryID graphql.ID
@@ -28,7 +28,7 @@ type LSIFIndexesListOptions struct {
 	NextURL      *string
 }
 
-func (r *lsifIndexConnectionResolver) Nodes(ctx context.Context) ([]graphqlbackend.LSIFIndexResolver, error) {
+func (r *lsifIndexConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFIndexResolver, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
@@ -60,8 +60,8 @@ func (r *lsifIndexConnectionResolver) PageInfo(ctx context.Context) (*graphqluti
 	return graphqlutil.HasNextPage(false), nil
 }
 
-func resolveIndexes(indexes []store.Index) []graphqlbackend.LSIFIndexResolver {
-	var resolvers []graphqlbackend.LSIFIndexResolver
+func resolveIndexes(indexes []store.Index) []gql.LSIFIndexResolver {
+	var resolvers []gql.LSIFIndexResolver
 	for _, lsifIndex := range indexes {
 		resolvers = append(resolvers, &lsifIndexResolver{
 			lsifIndex: lsifIndex,
@@ -92,7 +92,7 @@ func (r *realLsifIndexConnectionResolver) Compute(ctx context.Context) error {
 func (r *realLsifIndexConnectionResolver) compute(ctx context.Context) error {
 	var id int
 	if r.opt.RepositoryID != "" {
-		repositoryResolver, err := graphqlbackend.RepositoryByID(ctx, r.opt.RepositoryID)
+		repositoryResolver, err := gql.RepositoryByID(ctx, r.opt.RepositoryID)
 		if err != nil {
 			return err
 		}

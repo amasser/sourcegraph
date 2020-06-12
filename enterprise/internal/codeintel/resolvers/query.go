@@ -7,7 +7,7 @@ import (
 	"errors"
 
 	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
@@ -20,17 +20,17 @@ type lsifQueryResolver struct {
 	resolver *realLsifQueryResolver
 }
 
-var _ graphqlbackend.GitBlobLSIFDataResolver = &lsifQueryResolver{}
+var _ gql.GitBlobLSIFDataResolver = &lsifQueryResolver{}
 
-func (r *lsifQueryResolver) ToGitTreeLSIFData() (graphqlbackend.GitTreeLSIFDataResolver, bool) {
+func (r *lsifQueryResolver) ToGitTreeLSIFData() (gql.GitTreeLSIFDataResolver, bool) {
 	return r, true
 }
 
-func (r *lsifQueryResolver) ToGitBlobLSIFData() (graphqlbackend.GitBlobLSIFDataResolver, bool) {
+func (r *lsifQueryResolver) ToGitBlobLSIFData() (gql.GitBlobLSIFDataResolver, bool) {
 	return r, true
 }
 
-func (r *lsifQueryResolver) Definitions(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) (graphqlbackend.LocationConnectionResolver, error) {
+func (r *lsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryPositionArgs) (gql.LocationConnectionResolver, error) {
 	locations, err := r.resolver.Definitions(ctx, args)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func (r *lsifQueryResolver) Definitions(ctx context.Context, args *graphqlbacken
 	return &locationConnectionResolver{locations: locations}, nil
 }
 
-func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend.LSIFPagedQueryPositionArgs) (graphqlbackend.LocationConnectionResolver, error) {
+func (r *lsifQueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) (gql.LocationConnectionResolver, error) {
 	locations, cursor, err := r.resolver.References(ctx, args)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 	return &locationConnectionResolver{locations: locations, endCursor: cursor}, nil
 }
 
-func (r *lsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) (graphqlbackend.HoverResolver, error) {
+func (r *lsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionArgs) (gql.HoverResolver, error) {
 	text, lspRange, exists, err := r.resolver.Hover(ctx, args)
 	if err != nil || !exists {
 		return nil, err
@@ -57,7 +57,7 @@ func (r *lsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIF
 	return &hoverResolver{text: text, lspRange: lspRange}, nil
 }
 
-func (r *lsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbackend.LSIFDiagnosticsArgs) (graphqlbackend.DiagnosticConnectionResolver, error) {
+func (r *lsifQueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFDiagnosticsArgs) (gql.DiagnosticConnectionResolver, error) {
 	diagnostics, totalCount, err := r.resolver.Diagnostics(ctx, args)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ type realLsifQueryResolver struct {
 	uploads             []store.Dump
 }
 
-func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) ([]AdjustedLocation, error) {
+func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryPositionArgs) ([]AdjustedLocation, error) {
 	for _, upload := range r.uploads {
 		// TODO(efritz) - we should also detect renames/copies on position adjustment
 		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
@@ -117,7 +117,7 @@ func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *graphqlba
 	return nil, nil
 }
 
-func (r *realLsifQueryResolver) References(ctx context.Context, args *graphqlbackend.LSIFPagedQueryPositionArgs) ([]AdjustedLocation, string, error) {
+func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) ([]AdjustedLocation, string, error) {
 	// Decode a map of upload ids to the next url that serves
 	// the new page of results. This may not include an entry
 	// for every upload if their result sets have already been
@@ -211,7 +211,7 @@ func (r *realLsifQueryResolver) References(ctx context.Context, args *graphqlbac
 	return adjustedLocations, endCursor, nil
 }
 
-func (r *realLsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) (string, lsp.Range, bool, error) {
+func (r *realLsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionArgs) (string, lsp.Range, bool, error) {
 	for _, upload := range r.uploads {
 		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
 		if err != nil {
@@ -250,7 +250,7 @@ func (r *realLsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.
 	return "", lsp.Range{}, false, nil
 }
 
-func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbackend.LSIFDiagnosticsArgs) ([]AdjustedDiagnostic, int, error) {
+func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFDiagnosticsArgs) ([]AdjustedDiagnostic, int, error) {
 	limit := DefaultDiagnosticsPageSize
 	if args.First != nil {
 		limit = int(*args.First)

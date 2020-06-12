@@ -2,7 +2,7 @@ package resolvers
 
 import (
 	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 )
 
 type hoverResolver struct {
@@ -10,12 +10,12 @@ type hoverResolver struct {
 	lspRange lsp.Range
 }
 
-var _ graphqlbackend.HoverResolver = &hoverResolver{}
+var _ gql.HoverResolver = &hoverResolver{}
 
-func (r *hoverResolver) Markdown() graphqlbackend.MarkdownResolver {
-	return graphqlbackend.NewMarkdownResolver(r.text)
+func (r *hoverResolver) Markdown() gql.MarkdownResolver {
+	return gql.NewMarkdownResolver(r.text)
 }
 
-func (r *hoverResolver) Range() graphqlbackend.RangeResolver {
-	return graphqlbackend.NewRangeResolver(r.lspRange)
+func (r *hoverResolver) Range() gql.RangeResolver {
+	return gql.NewRangeResolver(r.lspRange)
 }

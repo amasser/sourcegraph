@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
@@ -14,7 +14,7 @@ type lsifUploadResolver struct {
 	lsifUpload store.Upload
 }
 
-var _ graphqlbackend.LSIFUploadResolver = &lsifUploadResolver{}
+var _ gql.LSIFUploadResolver = &lsifUploadResolver{}
 
 func (r *lsifUploadResolver) ID() graphql.ID        { return marshalLSIFUploadGQLID(int64(r.lsifUpload.ID)) }
 func (r *lsifUploadResolver) InputCommit() string   { return r.lsifUpload.Commit }
@@ -32,19 +32,19 @@ func (r *lsifUploadResolver) PlaceInQueue() *int32 {
 	return &v
 }
 
-func (r *lsifUploadResolver) UploadedAt() graphqlbackend.DateTime {
-	return graphqlbackend.DateTime{Time: r.lsifUpload.UploadedAt}
+func (r *lsifUploadResolver) UploadedAt() gql.DateTime {
+	return gql.DateTime{Time: r.lsifUpload.UploadedAt}
 }
 
-func (r *lsifUploadResolver) StartedAt() *graphqlbackend.DateTime {
-	return graphqlbackend.DateTimeOrNil(r.lsifUpload.StartedAt)
+func (r *lsifUploadResolver) StartedAt() *gql.DateTime {
+	return gql.DateTimeOrNil(r.lsifUpload.StartedAt)
 }
 
-func (r *lsifUploadResolver) FinishedAt() *graphqlbackend.DateTime {
-	return graphqlbackend.DateTimeOrNil(r.lsifUpload.FinishedAt)
+func (r *lsifUploadResolver) FinishedAt() *gql.DateTime {
+	return gql.DateTimeOrNil(r.lsifUpload.FinishedAt)
 }
 
-func (r *lsifUploadResolver) ProjectRoot(ctx context.Context) (*graphqlbackend.GitTreeEntryResolver, error) {
+func (r *lsifUploadResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
 	return resolvePath(ctx, api.RepoID(r.lsifUpload.RepositoryID), r.lsifUpload.Commit, r.lsifUpload.Root)
 }
 

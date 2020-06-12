@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
@@ -21,9 +21,9 @@ type diagnosticResolver struct {
 	collectionResolver *repositoryCollectionResolver
 }
 
-var _ graphqlbackend.DiagnosticResolver = &diagnosticResolver{}
+var _ gql.DiagnosticResolver = &diagnosticResolver{}
 
-func (r *diagnosticResolver) Location(ctx context.Context) (graphqlbackend.LocationResolver, error) {
+func (r *diagnosticResolver) Location(ctx context.Context) (gql.LocationResolver, error) {
 	return resolveLocation(ctx, r.collectionResolver, api.RepoID(r.diagnostic.diagnostic.Dump.RepositoryID), r.diagnostic.adjustedCommit, r.diagnostic.diagnostic.Diagnostic.Path, r.diagnostic.adjustedRange)
 }
 
@@ -66,7 +66,7 @@ func (r *diagnosticResolver) Message(ctx context.Context) (*string, error) {
 	return &r.diagnostic.diagnostic.Diagnostic.Message, nil
 }
 
-func resolveLocation(ctx context.Context, collectionResolver *repositoryCollectionResolver, repositoryID api.RepoID, commit, path string, lspRange lsp.Range) (graphqlbackend.LocationResolver, error) {
+func resolveLocation(ctx context.Context, collectionResolver *repositoryCollectionResolver, repositoryID api.RepoID, commit, path string, lspRange lsp.Range) (gql.LocationResolver, error) {
 	treeResolver, err := collectionResolver.resolve(ctx, repositoryID, commit, path)
 	if err != nil {
 		return nil, err
@@ -76,5 +76,5 @@ func resolveLocation(ctx context.Context, collectionResolver *repositoryCollecti
 		return nil, nil
 	}
 
-	return graphqlbackend.NewLocationResolver(treeResolver, &lspRange), nil
+	return gql.NewLocationResolver(treeResolver, &lspRange), nil
 }
