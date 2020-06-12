@@ -43,6 +43,7 @@ func NewQueryResolver(
 	positionAdjuster PositionAdjuster,
 	repositoryID int,
 	commit string,
+	path string,
 	uploads []store.Dump,
 ) *QueryResolver {
 	return &QueryResolver{
@@ -52,13 +53,14 @@ func NewQueryResolver(
 		positionAdjuster:    positionAdjuster,
 		repositoryID:        repositoryID,
 		commit:              commit,
+		path:                path,
 		uploads:             uploads,
 	}
 }
 
 func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
 	for i := range r.uploads {
-		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, line, character)
+		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, line, character)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +119,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 	var allLocations []codeintelapi.ResolvedLocation
 	for i := range r.uploads {
-		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, line, character)
+		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, line, character)
 		if err != nil {
 			return nil, "", err
 		}
@@ -193,7 +195,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
 	for i := range r.uploads {
-		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, line, character)
+		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, line, character)
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -212,7 +214,7 @@ func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string,
 			continue
 		}
 
-		adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, lspRange)
+		adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, r.path, lspRange)
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -235,7 +237,7 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 	totalCount := 0
 	var allDiagnostics []codeintelapi.ResolvedDiagnostic
 	for i := range r.uploads {
-		adjustedPath, ok, err := r.positionAdjuster.AdjustPath(ctx, r.uploads[i].Commit)
+		adjustedPath, ok, err := r.positionAdjuster.AdjustPath(ctx, r.uploads[i].Commit, r.path)
 		if err != nil {
 			return nil, 0, err
 		}

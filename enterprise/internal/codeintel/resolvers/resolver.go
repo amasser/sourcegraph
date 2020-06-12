@@ -71,6 +71,6 @@ func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataA
 		return nil, err
 	}
 
-	positionAdjuster := NewPositionAdjuster(repo, commit, path)
-	return NewQueryResolver(r.store, r.bundleManagerClient, r.codeIntelAPI, positionAdjuster, repositoryID, commit, dumps), nil
+	positionAdjuster := NewPositionAdjuster(repo, commit)
+	return NewQueryResolver(r.store, r.bundleManagerClient, r.codeIntelAPI, positionAdjuster, repositoryID, commit, path, dumps), nil
 }
