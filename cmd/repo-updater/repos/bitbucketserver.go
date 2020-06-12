@@ -178,11 +178,19 @@ func (s BitbucketServerSource) LoadChangesets(ctx context.Context, cs ...*Change
 		if err != nil {
 			return errors.Wrap(err, "loading pull request data")
 		}
+
 		err = s.loadRevData(ctx, pr, cs[i].Repo)
 		if err != nil {
 			return errors.Wrap(err, "loading revision data")
 		}
-		// TODO: calculate diffstat if necessary.
+		if gitDiffHasChanged(cs[i].Changeset, pr.ToRefRev, pr.FromRefRev) {
+			stat, err := ComputeGitDiffStat(ctx, cs[i].Repo, pr.ToRefRev, pr.FromRefRev)
+			if err != nil {
+				return errors.Wrap(err, "loading diff stat")
+			}
+			cs[i].SetDiffStat(stat)
+		}
+
 		if err = cs[i].SetMetadata(pr); err != nil {
 			return errors.Wrap(err, "setting changeset metadata")
 		}
@@ -212,18 +220,18 @@ func (s BitbucketServerSource) loadPullRequestData(ctx context.Context, pr *bitb
 }
 
 func (s BitbucketServerSource) loadRevData(ctx context.Context, pr *bitbucketserver.PullRequest, repo *Repo) error {
-	base, err := s.computeRevForRef(ctx, repo, &pr.FromRef)
+	from, err := s.computeRevForRef(ctx, repo, &pr.FromRef)
 	if err != nil {
 		return errors.Wrap(err, "computing rev for FromRef")
 	}
 
-	head, err := s.computeRevForRef(ctx, repo, &pr.ToRef)
+	to, err := s.computeRevForRef(ctx, repo, &pr.ToRef)
 	if err != nil {
 		return errors.Wrap(err, "computing rev for ToRef")
 	}
 
-	pr.FromRefRev = string(base)
-	pr.ToRefRev = string(head)
+	pr.FromRefRev = string(from)
+	pr.ToRefRev = string(to)
 
 	return nil
 }
