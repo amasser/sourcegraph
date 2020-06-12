@@ -2,7 +2,6 @@ package resolvers
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 
 	"github.com/sourcegraph/go-lsp"
@@ -325,13 +324,8 @@ func readCursor(after string) (map[int]string, error) {
 		return nil, nil
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(after)
-	if err != nil {
-		return nil, err
-	}
-
 	var cursors map[int]string
-	if err := json.Unmarshal(decoded, &cursors); err != nil {
+	if err := json.Unmarshal([]byte(after), &cursors); err != nil {
 		return nil, err
 	}
 	return cursors, nil
@@ -349,7 +343,7 @@ func makeCursor(cursors map[int]string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(encoded), nil
+	return string(encoded), nil
 }
 
 func convertRange(r bundles.Range) lsp.Range {

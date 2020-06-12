@@ -144,7 +144,7 @@ func (r *gqlQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryP
 		return nil, err
 	}
 
-	return NewGraphQLLocationConnectionResolver(locations, ""), nil
+	return NewGraphQLLocationConnectionResolver(locations, nil), nil
 }
 
 func (r *gqlQueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) (gql.LocationConnectionResolver, error) {
@@ -152,13 +152,17 @@ func (r *gqlQueryResolver) References(ctx context.Context, args *gql.LSIFPagedQu
 	if limit <= 0 {
 		return nil, ErrIllegalLimit
 	}
-
-	locations, cursor, err := r.resolver.References(ctx, int(args.Line), int(args.Character), limit, strDefault(args.After, ""))
+	cursor, err := decodeCursor(args.After)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewGraphQLLocationConnectionResolver(locations, cursor), nil
+	locations, cursor, err := r.resolver.References(ctx, int(args.Line), int(args.Character), limit, cursor)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewGraphQLLocationConnectionResolver(locations, strPtr(cursor)), nil
 }
 
 func (r *gqlQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionArgs) (gql.HoverResolver, error) {

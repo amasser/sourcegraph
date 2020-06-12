@@ -81,10 +81,10 @@ func (r *gqlIndexConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil
 
 type gqlLocationConnectionResolver struct {
 	locations []AdjustedLocation
-	cursor    string
+	cursor    *string
 }
 
-func NewGraphQLLocationConnectionResolver(locations []AdjustedLocation, cursor string) gql.LocationConnectionResolver {
+func NewGraphQLLocationConnectionResolver(locations []AdjustedLocation, cursor *string) gql.LocationConnectionResolver {
 	return &gqlLocationConnectionResolver{locations: locations, cursor: cursor}
 }
 

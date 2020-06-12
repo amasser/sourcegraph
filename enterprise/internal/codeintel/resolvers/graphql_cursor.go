@@ -8,33 +8,41 @@ import (
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 )
 
-// TODO - should put the b64 stuff here
-func encodeCursor(val string) *graphqlutil.PageInfo {
-	if val != "" {
-		return graphqlutil.NextPageCursor(val)
-	}
-
-	return graphqlutil.HasNextPage(false)
-}
-
-func encodeIntCursor(val *int) *graphqlutil.PageInfo {
+func encodeCursor(val *string) *graphqlutil.PageInfo {
 	if val != nil {
-		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%d", val))))
+		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(*val)))
 	}
 
 	return graphqlutil.HasNextPage(false)
 }
 
-func decodeIntCursor(val *string) (int, error) {
+func decodeCursor(val *string) (string, error) {
 	if val == nil {
-		return 0, nil
+		return "", nil
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(*val)
 	if err != nil {
+		return "", err
+	}
+
+	return string(decoded), nil
+}
+
+func encodeIntCursor(val *int) *graphqlutil.PageInfo {
+	var str string
+	if val != nil {
+		str = fmt.Sprintf("%d", *val)
+	}
+
+	return encodeCursor(&str)
+}
+
+func decodeIntCursor(val *string) (int, error) {
+	cursor, err := decodeCursor(val)
+	if err == nil || cursor == "" {
 		return 0, err
 	}
 
-	v, _ := strconv.Atoi(string(decoded))
-	return v, nil
+	return strconv.Atoi(string(cursor))
 }
