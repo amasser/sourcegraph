@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -14,9 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sourcegraph/sourcegraph/internal/repoupdater"
+	"github.com/sourcegraph/sourcegraph/cmd/repo-updater/repos/mock"
 	"github.com/sourcegraph/sourcegraph/internal/repoupdater/protocol"
-	"github.com/sourcegraph/sourcegraph/internal/vcs/git"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/inconshreveable/log15"
@@ -315,21 +313,11 @@ func TestGithubSource_LoadChangesets(t *testing.T) {
 			// Set up mocks to prevent the diffstat computation from trying to
 			// use a real gitserver, and so we can control what diff is used to
 			// create the diffstat.
-			repoupdater.MockRepoLookup = func(args protocol.RepoLookupArgs) (*protocol.RepoLookupResult, error) {
-				return &protocol.RepoLookupResult{
-					Repo: &protocol.RepoInfo{
-						Name: "repo",
-						VCS:  protocol.VCSInfo{URL: "https://example.com/repo/"},
-					},
-				}, nil
-			}
-			git.Mocks.ExecReader = func(args []string) (io.ReadCloser, error) {
-				return os.Open(filepath.Join("testdata", "test.diff"))
-			}
-			defer func() {
-				repoupdater.MockRepoLookup = nil
-				git.ResetMocks()
-			}()
+			state := mock.GitHubChangesetSync(&protocol.RepoInfo{
+				Name: "repo",
+				VCS:  protocol.VCSInfo{URL: "https://example.com/repo/"},
+			})
+			defer mock.UnmockGitHubChangesetSync(state)
 
 			cf, save := newClientFactory(t, tc.name)
 			defer save(t)
@@ -367,9 +355,9 @@ func TestGithubSource_LoadChangesets(t *testing.T) {
 			// Check diffstats.
 			for _, cs := range tc.cs {
 				want := &diff.Stat{
-					Added:   19,
-					Changed: 2,
-					Deleted: 11,
+					Added:   1,
+					Changed: 1,
+					Deleted: 3,
 				}
 				have := &diff.Stat{
 					Added:   *cs.DiffStatAdded,

@@ -19,6 +19,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/repo-updater/repos"
+	"github.com/sourcegraph/sourcegraph/cmd/repo-updater/repos/mock"
 	ee "github.com/sourcegraph/sourcegraph/enterprise/internal/campaigns"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/campaigns/resolvers/apitest"
 	"github.com/sourcegraph/sourcegraph/internal/actor"
@@ -304,11 +305,11 @@ func TestCampaigns(t *testing.T) {
 		graphqlBBSRepoID, "2",
 	)
 
-	state := apitest.MockGitHubChangesetSync(&protocol.RepoInfo{
+	state := mock.GitHubChangesetSync(&protocol.RepoInfo{
 		Name: api.RepoName(githubRepo.Name),
 		VCS:  protocol.VCSInfo{URL: githubRepo.URI},
 	})
-	defer apitest.UnmockGitHubChangesetSync(state)
+	defer mock.UnmockGitHubChangesetSync(state)
 
 	apitest.MustExec(ctx, t, s, nil, &result, fmt.Sprintf(`
 		fragment gitRef on GitRef {
@@ -743,11 +744,11 @@ func TestChangesetCountsOverTime(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mockState := apitest.MockGitHubChangesetSync(&protocol.RepoInfo{
+	mockState := mock.GitHubChangesetSync(&protocol.RepoInfo{
 		Name: api.RepoName(githubRepo.Name),
 		VCS:  protocol.VCSInfo{URL: githubRepo.URI},
 	})
-	defer apitest.UnmockGitHubChangesetSync(mockState)
+	defer mock.UnmockGitHubChangesetSync(mockState)
 
 	err = ee.SyncChangesets(ctx, repoStore, store, cf, changesets...)
 	if err != nil {
@@ -1263,11 +1264,11 @@ func TestCreateCampaignWithPatchSet(t *testing.T) {
 	}
 	defer func() { git.Mocks.GetCommit = nil }()
 
-	state := apitest.MockGitHubChangesetSync(&protocol.RepoInfo{
+	state := mock.GitHubChangesetSync(&protocol.RepoInfo{
 		Name: api.RepoName(repo.Name),
 		VCS:  protocol.VCSInfo{URL: repo.URI},
 	})
-	defer apitest.UnmockGitHubChangesetSync(state)
+	defer mock.UnmockGitHubChangesetSync(state)
 
 	var queryCampaignResponse struct{ Node apitest.Campaign }
 

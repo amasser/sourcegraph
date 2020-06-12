@@ -1,4 +1,4 @@
-package apitest
+package mock
 
 import (
 	"errors"
@@ -16,7 +16,10 @@ type MockedGitHubChangesetSyncState struct {
 	mockRepoLookup func(protocol.RepoLookupArgs) (*protocol.RepoLookupResult, error)
 }
 
-func MockGitHubChangesetSync(repo *protocol.RepoInfo) *MockedGitHubChangesetSyncState {
+// GitHubChangesetSync sets up mocks such that invoking LoadChangesets() on one
+// or more GitHub changesets will always return succeed, and return the same
+// diff.
+func GitHubChangesetSync(repo *protocol.RepoInfo) *MockedGitHubChangesetSyncState {
 	state := &MockedGitHubChangesetSyncState{
 		execReader:     git.Mocks.ExecReader,
 		mockRepoLookup: repoupdater.MockRepoLookup,
