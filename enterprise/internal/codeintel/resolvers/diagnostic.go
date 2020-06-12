@@ -27,19 +27,6 @@ func (r *diagnosticResolver) Location(ctx context.Context) (graphqlbackend.Locat
 	return resolveLocation(ctx, r.collectionResolver, api.RepoID(r.diagnostic.diagnostic.Dump.RepositoryID), r.diagnostic.adjustedCommit, r.diagnostic.diagnostic.Diagnostic.Path, r.diagnostic.adjustedRange)
 }
 
-func resolveLocation(ctx context.Context, collectionResolver *repositoryCollectionResolver, repositoryID api.RepoID, commit, path string, lspRange lsp.Range) (graphqlbackend.LocationResolver, error) {
-	treeResolver, err := collectionResolver.resolve(ctx, repositoryID, commit, path)
-	if err != nil {
-		return nil, err
-	}
-
-	if treeResolver == nil {
-		return nil, nil
-	}
-
-	return graphqlbackend.NewLocationResolver(treeResolver, &lspRange), nil
-}
-
 var severities = map[int]string{
 	1: "ERROR",
 	2: "WARNING",
@@ -77,4 +64,17 @@ func (r *diagnosticResolver) Message(ctx context.Context) (*string, error) {
 	}
 
 	return &r.diagnostic.diagnostic.Diagnostic.Message, nil
+}
+
+func resolveLocation(ctx context.Context, collectionResolver *repositoryCollectionResolver, repositoryID api.RepoID, commit, path string, lspRange lsp.Range) (graphqlbackend.LocationResolver, error) {
+	treeResolver, err := collectionResolver.resolve(ctx, repositoryID, commit, path)
+	if err != nil {
+		return nil, err
+	}
+
+	if treeResolver == nil {
+		return nil, nil
+	}
+
+	return graphqlbackend.NewLocationResolver(treeResolver, &lspRange), nil
 }

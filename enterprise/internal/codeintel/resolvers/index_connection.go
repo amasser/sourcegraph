@@ -36,16 +36,6 @@ func (r *lsifIndexConnectionResolver) Nodes(ctx context.Context) ([]graphqlbacke
 	return resolveIndexes(r.resolver.indexes), nil
 }
 
-func resolveIndexes(indexes []store.Index) []graphqlbackend.LSIFIndexResolver {
-	var resolvers []graphqlbackend.LSIFIndexResolver
-	for _, lsifIndex := range indexes {
-		resolvers = append(resolvers, &lsifIndexResolver{
-			lsifIndex: lsifIndex,
-		})
-	}
-	return resolvers
-}
-
 func (r *lsifIndexConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
@@ -69,6 +59,19 @@ func (r *lsifIndexConnectionResolver) PageInfo(ctx context.Context) (*graphqluti
 
 	return graphqlutil.HasNextPage(false), nil
 }
+
+func resolveIndexes(indexes []store.Index) []graphqlbackend.LSIFIndexResolver {
+	var resolvers []graphqlbackend.LSIFIndexResolver
+	for _, lsifIndex := range indexes {
+		resolvers = append(resolvers, &lsifIndexResolver{
+			lsifIndex: lsifIndex,
+		})
+	}
+	return resolvers
+}
+
+//
+//
 
 type realLsifIndexConnectionResolver struct {
 	store store.Store

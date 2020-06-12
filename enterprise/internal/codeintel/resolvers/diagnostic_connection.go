@@ -19,6 +19,14 @@ func (r *diagnosticConnectionResolver) Nodes(ctx context.Context) ([]graphqlback
 	return resolveDiagnostics(r.diagnostics), nil
 }
 
+func (r *diagnosticConnectionResolver) TotalCount(ctx context.Context) (int32, error) {
+	return int32(r.totalCount), nil
+}
+
+func (r *diagnosticConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
+	return graphqlutil.HasNextPage(len(r.diagnostics) < r.totalCount), nil
+}
+
 func resolveDiagnostics(diagnostics []AdjustedDiagnostic) []graphqlbackend.DiagnosticResolver {
 	collectionResolver := &repositoryCollectionResolver{
 		commitCollectionResolvers: map[api.RepoID]*commitCollectionResolver{},
@@ -33,12 +41,4 @@ func resolveDiagnostics(diagnostics []AdjustedDiagnostic) []graphqlbackend.Diagn
 	}
 
 	return resolvers
-}
-
-func (r *diagnosticConnectionResolver) TotalCount(ctx context.Context) (int32, error) {
-	return int32(r.totalCount), nil
-}
-
-func (r *diagnosticConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
-	return graphqlutil.HasNextPage(len(r.diagnostics) < r.totalCount), nil
 }

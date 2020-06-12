@@ -18,12 +18,6 @@ type Resolver struct {
 	resolver *realResolver
 }
 
-type realResolver struct {
-	store               store.Store
-	bundleManagerClient bundles.BundleManagerClient
-	codeIntelAPI        codeintelapi.CodeIntelAPI
-}
-
 var _ graphqlbackend.CodeIntelResolver = &Resolver{}
 
 func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) graphqlbackend.CodeIntelResolver {
@@ -46,10 +40,6 @@ func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (graphqlba
 	}
 
 	return &lsifUploadResolver{lsifUpload: upload}, nil
-}
-
-func (r *realResolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
-	return r.store.GetUploadByID(ctx, id)
 }
 
 func (r *Resolver) LSIFUploads(ctx context.Context, args *graphqlbackend.LSIFUploadsQueryArgs) (graphqlbackend.LSIFUploadConnectionResolver, error) {
@@ -77,11 +67,7 @@ func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *graphqlbackend.L
 		opt.NextURL = &nextURL
 	}
 
-	return &lsifUploadConnectionResolver{resolver: r.resolver.UploadsResolver(opt)}, nil
-}
-
-func (r *realResolver) UploadsResolver(opt LSIFUploadsListOptions) *realLsifUploadConnectionResolver {
-	return &realLsifUploadConnectionResolver{store: r.store, opt: opt}
+	return &lsifUploadConnectionResolver{resolver: r.resolver.UploadConnectionResolver(opt)}, nil
 }
 
 func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {
@@ -102,19 +88,6 @@ func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*graphq
 	return &graphqlbackend.EmptyResponse{}, nil
 }
 
-func (r *realResolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
-	getTipCommit := func(repositoryID int) (string, error) {
-		tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
-		if err != nil {
-			return "", errors.Wrap(err, "gitserver.Head")
-		}
-		return tipCommit, nil
-	}
-
-	_, err := r.store.DeleteUploadByID(ctx, uploadID, getTipCommit)
-	return err
-}
-
 func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (graphqlbackend.LSIFIndexResolver, error) {
 	indexID, err := unmarshalLSIFIndexGQLID(id)
 	if err != nil {
@@ -127,10 +100,6 @@ func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (graphqlbac
 	}
 
 	return &lsifIndexResolver{lsifIndex: index}, nil
-}
-
-func (r *realResolver) GetIndexByID(ctx context.Context, id int) (store.Index, bool, error) {
-	return r.store.GetIndexByID(ctx, id)
 }
 
 func (r *Resolver) LSIFIndexes(ctx context.Context, args *graphqlbackend.LSIFIndexesQueryArgs) (graphqlbackend.LSIFIndexConnectionResolver, error) {
@@ -160,10 +129,6 @@ func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *graphqlbackend.L
 	return &lsifIndexConnectionResolver{resolver: r.resolver.IndexConnectionResolver(opt)}, nil
 }
 
-func (r *realResolver) IndexConnectionResolver(opt LSIFIndexesListOptions) *realLsifIndexConnectionResolver {
-	return &realLsifIndexConnectionResolver{store: r.store, opt: opt}
-}
-
 func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {
 	// 🚨 SECURITY: Only site admins may delete LSIF data for now
 	if err := backend.CheckCurrentUserIsSiteAdmin(ctx); err != nil {
@@ -182,11 +147,6 @@ func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*graphql
 	return &graphqlbackend.EmptyResponse{}, nil
 }
 
-func (r *realResolver) DeleteIndexByID(ctx context.Context, id int) error {
-	_, err := r.store.DeleteIndexByID(ctx, id)
-	return err
-}
-
 func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *graphqlbackend.GitBlobLSIFDataArgs) (graphqlbackend.GitBlobLSIFDataResolver, error) {
 	resolver, err := r.resolver.QueryResolver(ctx, args)
 	if err != nil || resolver == nil {
@@ -194,6 +154,49 @@ func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *graphqlbackend.Git
 	}
 
 	return &lsifQueryResolver{resolver: resolver}, nil
+}
+
+//
+//
+
+type realResolver struct {
+	store               store.Store
+	bundleManagerClient bundles.BundleManagerClient
+	codeIntelAPI        codeintelapi.CodeIntelAPI
+}
+
+func (r *realResolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
+	return r.store.GetUploadByID(ctx, id)
+}
+
+func (r *realResolver) GetIndexByID(ctx context.Context, id int) (store.Index, bool, error) {
+	return r.store.GetIndexByID(ctx, id)
+}
+
+func (r *realResolver) UploadConnectionResolver(opt LSIFUploadsListOptions) *realLsifUploadConnectionResolver {
+	return &realLsifUploadConnectionResolver{store: r.store, opt: opt}
+}
+
+func (r *realResolver) IndexConnectionResolver(opt LSIFIndexesListOptions) *realLsifIndexConnectionResolver {
+	return &realLsifIndexConnectionResolver{store: r.store, opt: opt}
+}
+
+func (r *realResolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
+	getTipCommit := func(repositoryID int) (string, error) {
+		tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
+		if err != nil {
+			return "", errors.Wrap(err, "gitserver.Head")
+		}
+		return tipCommit, nil
+	}
+
+	_, err := r.store.DeleteUploadByID(ctx, uploadID, getTipCommit)
+	return err
+}
+
+func (r *realResolver) DeleteIndexByID(ctx context.Context, id int) error {
+	_, err := r.store.DeleteIndexByID(ctx, id)
+	return err
 }
 
 func (r *realResolver) QueryResolver(ctx context.Context, args *graphqlbackend.GitBlobLSIFDataArgs) (*realLsifQueryResolver, error) {

@@ -37,17 +37,6 @@ func (r *lsifUploadConnectionResolver) Nodes(ctx context.Context) ([]graphqlback
 	return resolveUploads(r.resolver.uploads), nil
 }
 
-func resolveUploads(uploads []store.Upload) []graphqlbackend.LSIFUploadResolver {
-	var resolvers []graphqlbackend.LSIFUploadResolver
-	for _, lsifUpload := range uploads {
-		resolvers = append(resolvers, &lsifUploadResolver{
-			lsifUpload: lsifUpload,
-		})
-	}
-
-	return resolvers
-}
-
 func (r *lsifUploadConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
@@ -71,6 +60,20 @@ func (r *lsifUploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlut
 
 	return graphqlutil.HasNextPage(false), nil
 }
+
+func resolveUploads(uploads []store.Upload) []graphqlbackend.LSIFUploadResolver {
+	var resolvers []graphqlbackend.LSIFUploadResolver
+	for _, lsifUpload := range uploads {
+		resolvers = append(resolvers, &lsifUploadResolver{
+			lsifUpload: lsifUpload,
+		})
+	}
+
+	return resolvers
+}
+
+//
+//
 
 type realLsifUploadConnectionResolver struct {
 	store store.Store
