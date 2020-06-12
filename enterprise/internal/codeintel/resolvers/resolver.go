@@ -15,6 +15,10 @@ import (
 )
 
 type Resolver struct {
+	resolver *realResolver
+}
+
+type realResolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
@@ -23,11 +27,11 @@ type Resolver struct {
 var _ graphqlbackend.CodeIntelResolver = &Resolver{}
 
 func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) graphqlbackend.CodeIntelResolver {
-	return &Resolver{
+	return &Resolver{resolver: &realResolver{
 		store:               store,
 		bundleManagerClient: bundleManagerClient,
 		codeIntelAPI:        codeIntelAPI,
-	}
+	}}
 }
 
 func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (graphqlbackend.LSIFUploadResolver, error) {
@@ -36,12 +40,16 @@ func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (graphqlba
 		return nil, err
 	}
 
-	upload, exists, err := r.store.GetUploadByID(ctx, int(uploadID))
+	upload, exists, err := r.resolver.GetUploadByID(ctx, int(uploadID))
 	if err != nil || !exists {
 		return nil, err
 	}
 
 	return &lsifUploadResolver{lsifUpload: upload}, nil
+}
+
+func (r *realResolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
+	return r.store.GetUploadByID(ctx, id)
 }
 
 func (r *Resolver) LSIFUploads(ctx context.Context, args *graphqlbackend.LSIFUploadsQueryArgs) (graphqlbackend.LSIFUploadConnectionResolver, error) {
@@ -69,7 +77,11 @@ func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *graphqlbackend.L
 		opt.NextURL = &nextURL
 	}
 
-	return &lsifUploadConnectionResolver{resolver: &realLsifUploadConnectionResolver{store: r.store, opt: opt}}, nil
+	return &lsifUploadConnectionResolver{resolver: r.resolver.UploadsResolver(opt)}, nil
+}
+
+func (r *realResolver) UploadsResolver(opt LSIFUploadsListOptions) *realLsifUploadConnectionResolver {
+	return &realLsifUploadConnectionResolver{store: r.store, opt: opt}
 }
 
 func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {
@@ -83,18 +95,24 @@ func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*graphq
 		return nil, err
 	}
 
-	_, err = r.store.DeleteUploadByID(ctx, int(uploadID), func(repositoryID int) (string, error) {
+	if err := r.resolver.DeleteUploadByID(ctx, int(uploadID)); err != nil {
+		return nil, err
+	}
+
+	return &graphqlbackend.EmptyResponse{}, nil
+}
+
+func (r *realResolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
+	getTipCommit := func(repositoryID int) (string, error) {
 		tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
 		if err != nil {
 			return "", errors.Wrap(err, "gitserver.Head")
 		}
 		return tipCommit, nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
-	return &graphqlbackend.EmptyResponse{}, nil
+	_, err := r.store.DeleteUploadByID(ctx, uploadID, getTipCommit)
+	return err
 }
 
 func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (graphqlbackend.LSIFIndexResolver, error) {
@@ -103,12 +121,16 @@ func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (graphqlbac
 		return nil, err
 	}
 
-	index, exists, err := r.store.GetIndexByID(ctx, int(indexID))
+	index, exists, err := r.resolver.GetIndexByID(ctx, int(indexID))
 	if err != nil || !exists {
 		return nil, err
 	}
 
 	return &lsifIndexResolver{lsifIndex: index}, nil
+}
+
+func (r *realResolver) GetIndexByID(ctx context.Context, id int) (store.Index, bool, error) {
+	return r.store.GetIndexByID(ctx, id)
 }
 
 func (r *Resolver) LSIFIndexes(ctx context.Context, args *graphqlbackend.LSIFIndexesQueryArgs) (graphqlbackend.LSIFIndexConnectionResolver, error) {
@@ -135,7 +157,11 @@ func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *graphqlbackend.L
 		opt.NextURL = &nextURL
 	}
 
-	return &lsifIndexConnectionResolver{resolver: &realLsifIndexConnectionResolver{store: r.store, opt: opt}}, nil
+	return &lsifIndexConnectionResolver{resolver: r.resolver.IndexConnectionResolver(opt)}, nil
+}
+
+func (r *realResolver) IndexConnectionResolver(opt LSIFIndexesListOptions) *realLsifIndexConnectionResolver {
+	return &realLsifIndexConnectionResolver{store: r.store, opt: opt}
 }
 
 func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*graphqlbackend.EmptyResponse, error) {
@@ -149,23 +175,34 @@ func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*graphql
 		return nil, err
 	}
 
-	if _, err := r.store.DeleteIndexByID(ctx, int(indexID)); err != nil {
+	if err := r.resolver.DeleteIndexByID(ctx, int(indexID)); err != nil {
 		return nil, err
 	}
 
 	return &graphqlbackend.EmptyResponse{}, nil
 }
 
+func (r *realResolver) DeleteIndexByID(ctx context.Context, id int) error {
+	_, err := r.store.DeleteIndexByID(ctx, id)
+	return err
+}
+
 func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *graphqlbackend.GitBlobLSIFDataArgs) (graphqlbackend.GitBlobLSIFDataResolver, error) {
-	dumps, err := r.codeIntelAPI.FindClosestDumps(ctx, int(args.Repository.Type().ID), string(args.Commit), args.Path, args.ExactPath, args.ToolName)
-	if err != nil {
+	resolver, err := r.resolver.QueryResolver(ctx, args)
+	if err != nil || resolver == nil {
 		return nil, err
 	}
-	if len(dumps) == 0 {
-		return nil, nil
+
+	return &lsifQueryResolver{resolver: resolver}, nil
+}
+
+func (r *realResolver) QueryResolver(ctx context.Context, args *graphqlbackend.GitBlobLSIFDataArgs) (*realLsifQueryResolver, error) {
+	dumps, err := r.codeIntelAPI.FindClosestDumps(ctx, int(args.Repository.Type().ID), string(args.Commit), args.Path, args.ExactPath, args.ToolName)
+	if err != nil || len(dumps) == 0 {
+		return nil, err
 	}
 
-	return &lsifQueryResolver{resolver: &realLsifQueryResolver{
+	return &realLsifQueryResolver{
 		store:               r.store,
 		bundleManagerClient: r.bundleManagerClient,
 		codeIntelAPI:        r.codeIntelAPI,
@@ -173,5 +210,5 @@ func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *graphqlbackend.Git
 		commit:              args.Commit,
 		path:                args.Path,
 		uploads:             dumps,
-	}}, nil
+	}, nil
 }
