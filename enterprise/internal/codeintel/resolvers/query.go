@@ -76,9 +76,14 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 
 		adjustedLocations := make([]AdjustedLocation, 0, len(locations))
 		for i := range locations {
-			adjustedCommit, adjustedRange, err := r.positionAdjuster.AdjustLocation(ctx, locations[i].Dump.RepositoryID, locations[i].Dump.Commit, locations[i].Path, locations[i].Range)
-			if err != nil {
-				return nil, err
+			adjustedCommit := locations[i].Dump.Commit
+			adjustedRange := convertRange(locations[i].Range)
+			if locations[i].Dump.RepositoryID == r.repositoryID {
+				var err error
+				adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, locations[i].Dump.Commit, locations[i].Path, locations[i].Range)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			adjustedLocations = append(adjustedLocations, AdjustedLocation{
@@ -165,9 +170,14 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 	adjustedLocations := make([]AdjustedLocation, 0, len(allLocations))
 	for i := range allLocations {
-		adjustedCommit, adjustedRange, err := r.positionAdjuster.AdjustLocation(ctx, allLocations[i].Dump.RepositoryID, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range)
-		if err != nil {
-			return nil, "", err
+		adjustedCommit := allLocations[i].Dump.Commit
+		adjustedRange := convertRange(allLocations[i].Range)
+		if allLocations[i].Dump.RepositoryID == r.repositoryID {
+			var err error
+			adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range)
+			if err != nil {
+				return nil, "", err
+			}
 		}
 
 		adjustedLocations = append(adjustedLocations, AdjustedLocation{
@@ -254,9 +264,14 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 			End:   client.Position{Line: allDiagnostics[i].Diagnostic.StartCharacter, Character: allDiagnostics[i].Diagnostic.EndCharacter},
 		}
 
-		adjustedCommit, adjustedRange, err := r.positionAdjuster.AdjustLocation(ctx, allDiagnostics[i].Dump.RepositoryID, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange)
-		if err != nil {
-			return nil, 0, err
+		adjustedCommit := allDiagnostics[i].Dump.Commit
+		adjustedRange := convertRange(clientRange)
+		if allDiagnostics[i].Dump.RepositoryID == r.repositoryID {
+			var err error
+			adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange)
+			if err != nil {
+				return nil, 0, err
+			}
 		}
 
 		adjustedDiagnostics = append(adjustedDiagnostics, AdjustedDiagnostic{
