@@ -1,24 +1,4 @@
-package resolvers
-
-import (
-	"fmt"
-)
-
-var severities = map[int]string{
-	1: "ERROR",
-	2: "WARNING",
-	3: "INFORMATION",
-	4: "HINT",
-}
-
-func toSeverity(val int) (*string, error) {
-	severity, ok := severities[val]
-	if !ok {
-		return nil, fmt.Errorf("unknown diagnostic severity %d", val)
-	}
-
-	return &severity, nil
-}
+package graphql
 
 // TODO - rename
 func strPtr(val string) *string {
@@ -28,6 +8,12 @@ func strPtr(val string) *string {
 
 	return &val
 }
+
+// TODO - rename
+func intPtr(val int32) *int32 { return &val }
+
+// TODO - rename
+func boolPtr(val bool) *bool { return &val }
 
 // TODO - rename
 func int32Ptr(val *int) *int32 {

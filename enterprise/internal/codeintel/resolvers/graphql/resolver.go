@@ -1,29 +1,30 @@
-package resolvers
+package graphql
 
 import (
 	"context"
+	"strings"
 
 	graphql "github.com/graph-gophers/graphql-go"
-	"github.com/pkg/errors"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
-	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
-	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
-const DefaultReferencesPageSize = 100
-const DefaultDiagnosticsPageSize = 100
+const DefaultUploadPageSize = 50
+const DefaultIndexPageSize = 50
 
-var ErrIllegalLimit = errors.New("illegal limit")
-
+// TODO - document
 type Resolver struct {
-	resolver *resolvers.Resolver
+	resolver         *resolvers.Resolver
+	locationResolver *CachedLocationResolver
 }
 
-func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) gql.CodeIntelResolver {
-	return &Resolver{resolver: resolvers.NewResolver(store, bundleManagerClient, codeIntelAPI)}
+func NewResolver(resolver *resolvers.Resolver) gql.CodeIntelResolver {
+	return &Resolver{
+		resolver:         resolver,
+		locationResolver: NewCachedLocationResolver(),
+	}
 }
 
 func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFUploadResolver, error) {
@@ -37,7 +38,7 @@ func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFU
 		return nil, err
 	}
 
-	return NewUploadResolver(upload), nil
+	return NewUploadResolver(upload, r.locationResolver), nil
 }
 
 func (r *Resolver) LSIFUploads(ctx context.Context, args *gql.LSIFUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
@@ -50,7 +51,7 @@ func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *gql.LSIFReposito
 		return nil, err
 	}
 
-	return NewUploadConnectionResolver(r.resolver.UploadConnectionResolver(opts)), nil
+	return NewUploadConnectionResolver(r.resolver.UploadConnectionResolver(opts), r.locationResolver), nil
 }
 
 func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {
@@ -82,7 +83,7 @@ func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (gql.LSIFIn
 		return nil, err
 	}
 
-	return NewIndexResolver(index), nil
+	return NewIndexResolver(index, r.locationResolver), nil
 }
 
 func (r *Resolver) LSIFIndexes(ctx context.Context, args *gql.LSIFIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
@@ -95,7 +96,7 @@ func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *gql.LSIFReposito
 		return nil, err
 	}
 
-	return NewIndexConnectionResolver(r.resolver.IndexConnectionResolver(opts)), nil
+	return NewIndexConnectionResolver(r.resolver.IndexConnectionResolver(opts), r.locationResolver), nil
 }
 
 func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {
@@ -122,69 +123,61 @@ func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *gql.GitBlobLSIFDat
 		return nil, err
 	}
 
-	return NewQueryResolver(resolver), nil
+	return NewQueryResolver(resolver, r.locationResolver), nil
 }
 
-//
-//
-
-type QueryResolver struct {
-	resolver *resolvers.QueryResolver
-}
-
-func NewQueryResolver(resolver *resolvers.QueryResolver) gql.GitBlobLSIFDataResolver {
-	return &QueryResolver{resolver: resolver}
-}
-
-func (r *QueryResolver) ToGitTreeLSIFData() (gql.GitTreeLSIFDataResolver, bool) { return r, true }
-func (r *QueryResolver) ToGitBlobLSIFData() (gql.GitBlobLSIFDataResolver, bool) { return r, true }
-
-func (r *QueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryPositionArgs) (gql.LocationConnectionResolver, error) {
-	locations, err := r.resolver.Definitions(ctx, int(args.Line), int(args.Character))
+// TODO - document
+func makeGetUploadsOptions(ctx context.Context, args *gql.LSIFRepositoryUploadsQueryArgs) (store.GetUploadsOptions, error) {
+	repositoryID, err := resolveRepositoryID(ctx, args.RepositoryID)
 	if err != nil {
-		return nil, err
+		return store.GetUploadsOptions{}, err
 	}
 
-	return NewLocationConnectionResolver(locations, nil), nil
+	offset, err := decodeIntCursor(args.After)
+	if err != nil {
+		return store.GetUploadsOptions{}, err
+	}
+
+	return store.GetUploadsOptions{
+		RepositoryID: repositoryID,
+		State:        strings.ToLower(strDefault(args.State, "")),
+		Term:         strDefault(args.Query, ""),
+		VisibleAtTip: boolDefault(args.IsLatestForRepo, false),
+		Limit:        int32Default(args.First, DefaultUploadPageSize),
+		Offset:       offset,
+	}, nil
 }
 
-func (r *QueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) (gql.LocationConnectionResolver, error) {
-	limit := int32Default(args.First, DefaultReferencesPageSize)
-	if limit <= 0 {
-		return nil, ErrIllegalLimit
-	}
-	cursor, err := decodeCursor(args.After)
+// TODO - document
+func makeGetIndexesOptions(ctx context.Context, args *gql.LSIFRepositoryIndexesQueryArgs) (store.GetIndexesOptions, error) {
+	repositoryID, err := resolveRepositoryID(ctx, args.RepositoryID)
 	if err != nil {
-		return nil, err
+		return store.GetIndexesOptions{}, err
 	}
 
-	locations, cursor, err := r.resolver.References(ctx, int(args.Line), int(args.Character), limit, cursor)
+	offset, err := decodeIntCursor(args.After)
 	if err != nil {
-		return nil, err
+		return store.GetIndexesOptions{}, err
 	}
 
-	return NewLocationConnectionResolver(locations, strPtr(cursor)), nil
+	return store.GetIndexesOptions{
+		RepositoryID: repositoryID,
+		State:        strings.ToLower(strDefault(args.State, "")),
+		Term:         strDefault(args.Query, ""),
+		Limit:        int32Default(args.First, DefaultIndexPageSize),
+		Offset:       offset,
+	}, nil
 }
 
-func (r *QueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionArgs) (gql.HoverResolver, error) {
-	text, lspRange, exists, err := r.resolver.Hover(ctx, int(args.Line), int(args.Character))
-	if err != nil || !exists {
-		return nil, err
+func resolveRepositoryID(ctx context.Context, id graphql.ID) (int, error) {
+	if id == "" {
+		return 0, nil
 	}
 
-	return NewHoverResolver(text, lspRange), nil
-}
-
-func (r *QueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFDiagnosticsArgs) (gql.DiagnosticConnectionResolver, error) {
-	limit := int32Default(args.First, DefaultDiagnosticsPageSize)
-	if limit <= 0 {
-		return nil, ErrIllegalLimit
-	}
-
-	diagnostics, totalCount, err := r.resolver.Diagnostics(ctx, limit)
+	repositoryResolver, err := gql.RepositoryByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return NewDiagnosticConnectionResolver(diagnostics, totalCount), nil
+	return int(repositoryResolver.Type().ID), nil
 }
