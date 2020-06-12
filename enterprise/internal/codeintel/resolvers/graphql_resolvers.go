@@ -21,13 +21,8 @@ type gqlResolver struct {
 	resolver *resolver
 }
 
-// TODO - rename
-func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) gql.CodeIntelResolver {
-	return &gqlResolver{resolver: &resolver{ // TODO - make ctor
-		store:               store,
-		bundleManagerClient: bundleManagerClient,
-		codeIntelAPI:        codeIntelAPI,
-	}}
+func NewGraphQLResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) gql.CodeIntelResolver {
+	return &gqlResolver{resolver: NewResolver(store, bundleManagerClient, codeIntelAPI)}
 }
 
 func (r *gqlResolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFUploadResolver, error) {
@@ -49,7 +44,7 @@ func (r *gqlResolver) LSIFUploads(ctx context.Context, args *gql.LSIFUploadsQuer
 }
 
 func (r *gqlResolver) LSIFUploadsByRepo(ctx context.Context, args *gql.LSIFRepositoryUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
-	opts, err := toGetUploadsOptions(ctx, args)
+	opts, err := makeGetUploadsOptions(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +89,7 @@ func (r *gqlResolver) LSIFIndexes(ctx context.Context, args *gql.LSIFIndexesQuer
 }
 
 func (r *gqlResolver) LSIFIndexesByRepo(ctx context.Context, args *gql.LSIFRepositoryIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
-	opts, err := toGetIndexesOptions(ctx, args)
+	opts, err := makeGetIndexesOptions(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -137,9 +132,7 @@ type gqlQueryResolver struct {
 }
 
 func NewGraphQLQueryResolver(resolver *queryResolver) gql.GitBlobLSIFDataResolver {
-	return &gqlQueryResolver{
-		resolver,
-	}
+	return &gqlQueryResolver{resolver: resolver}
 }
 
 func (r *gqlQueryResolver) ToGitTreeLSIFData() (gql.GitTreeLSIFDataResolver, bool) { return r, true }

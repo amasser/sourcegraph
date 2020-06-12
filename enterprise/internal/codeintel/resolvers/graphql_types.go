@@ -16,9 +16,7 @@ type gqlUploadResolver struct {
 }
 
 func NewGraphQLUploadResolver(upload store.Upload) gql.LSIFUploadResolver {
-	return &gqlUploadResolver{
-		upload: upload,
-	}
+	return &gqlUploadResolver{upload: upload}
 }
 
 func (r *gqlUploadResolver) ID() graphql.ID            { return marshalLSIFUploadGQLID(int64(r.upload.ID)) }
@@ -45,9 +43,7 @@ type gqlIndexResolver struct {
 }
 
 func NewGraphQLIndexResolver(index store.Index) gql.LSIFIndexResolver {
-	return &gqlIndexResolver{
-		index: index,
-	}
+	return &gqlIndexResolver{index: index}
 }
 
 func (r *gqlIndexResolver) ID() graphql.ID            { return marshalLSIFIndexGQLID(int64(r.index.ID)) }
@@ -72,10 +68,7 @@ type gqlHoverResolver struct {
 }
 
 func NewGraphQLHoverResolver(text string, lspRange lsp.Range) gql.HoverResolver {
-	return &gqlHoverResolver{
-		text:     text,
-		lspRange: lspRange,
-	}
+	return &gqlHoverResolver{text: text, lspRange: lspRange}
 }
 
 func (r *gqlHoverResolver) Markdown() gql.MarkdownResolver { return gql.NewMarkdownResolver(r.text) }
@@ -90,10 +83,7 @@ type gqlDiagnosticResolver struct {
 }
 
 func NewGraphQLDiagnosticResolver(diagnostic AdjustedDiagnostic, collectionResolver *repositoryCollectionResolver) gql.DiagnosticResolver {
-	return &gqlDiagnosticResolver{
-		diagnostic:         diagnostic,
-		collectionResolver: collectionResolver,
-	}
+	return &gqlDiagnosticResolver{diagnostic: diagnostic, collectionResolver: collectionResolver}
 }
 
 func (r *gqlDiagnosticResolver) Severity() (*string, error) { return toSeverity(r.diagnostic.Severity) }

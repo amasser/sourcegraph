@@ -8,9 +8,18 @@ import (
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 )
 
+// TODO - should put the b64 stuff here
 func encodeCursor(val string) *graphqlutil.PageInfo {
 	if val != "" {
 		return graphqlutil.NextPageCursor(val)
+	}
+
+	return graphqlutil.HasNextPage(false)
+}
+
+func encodeIntCursor(val *int) *graphqlutil.PageInfo {
+	if val != nil {
+		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%d", val))))
 	}
 
 	return graphqlutil.HasNextPage(false)
@@ -28,12 +37,4 @@ func decodeIntCursor(val *string) (int, error) {
 
 	v, _ := strconv.Atoi(string(decoded))
 	return v, nil
-}
-
-func encodeIntCursor(val *int) *graphqlutil.PageInfo {
-	if val != nil {
-		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%d", val))))
-	}
-
-	return graphqlutil.HasNextPage(false)
 }

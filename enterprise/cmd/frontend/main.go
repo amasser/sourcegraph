@@ -181,12 +181,7 @@ func initCodeIntel(enterpriseServices *enterprise.Services) {
 	bundleManagerClient := bundles.New(bundleManagerURL)
 	api := codeintelapi.NewObserved(codeintelapi.New(store, bundleManagerClient, codeintelgitserver.DefaultClient), observationContext)
 
-	enterpriseServices.CodeIntelResolver = codeintelResolvers.NewResolver(
-		store,
-		bundleManagerClient,
-		api,
-	)
-
+	enterpriseServices.CodeIntelResolver = codeintelResolvers.NewGraphQLResolver(store, bundleManagerClient, api)
 	enterpriseServices.NewCodeIntelUploadHandler = func(internal bool) http.Handler {
 		return codeintelhttpapi.NewUploadHandler(store, bundleManagerClient, internal)
 	}

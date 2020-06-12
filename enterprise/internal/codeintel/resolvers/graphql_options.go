@@ -12,7 +12,7 @@ import (
 const DefaultUploadPageSize = 50
 const DefaultIndexPageSize = 50
 
-func toGetUploadsOptions(ctx context.Context, args *gql.LSIFRepositoryUploadsQueryArgs) (store.GetUploadsOptions, error) {
+func makeGetUploadsOptions(ctx context.Context, args *gql.LSIFRepositoryUploadsQueryArgs) (store.GetUploadsOptions, error) {
 	repositoryID, err := resolveRepositoryID(ctx, args.RepositoryID)
 	if err != nil {
 		return store.GetUploadsOptions{}, err
@@ -33,7 +33,7 @@ func toGetUploadsOptions(ctx context.Context, args *gql.LSIFRepositoryUploadsQue
 	}, nil
 }
 
-func toGetIndexesOptions(ctx context.Context, args *gql.LSIFRepositoryIndexesQueryArgs) (store.GetIndexesOptions, error) {
+func makeGetIndexesOptions(ctx context.Context, args *gql.LSIFRepositoryIndexesQueryArgs) (store.GetIndexesOptions, error) {
 	repositoryID, err := resolveRepositoryID(ctx, args.RepositoryID)
 	if err != nil {
 		return store.GetIndexesOptions{}, err

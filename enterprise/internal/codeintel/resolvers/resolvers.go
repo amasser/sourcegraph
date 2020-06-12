@@ -18,6 +18,10 @@ type resolver struct {
 	codeIntelAPI        codeintelapi.CodeIntelAPI
 }
 
+func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) *resolver {
+	return &resolver{store: store, bundleManagerClient: bundleManagerClient, codeIntelAPI: codeIntelAPI}
+}
+
 func (r *resolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
 	return r.store.GetUploadByID(ctx, id)
 }
@@ -81,10 +85,7 @@ type uploadsResolver struct {
 }
 
 func NewUploadsResolver(store store.Store, opts store.GetUploadsOptions) *uploadsResolver {
-	return &uploadsResolver{
-		store: store,
-		opts:  opts,
-	}
+	return &uploadsResolver{store: store, opts: opts}
 }
 
 func (r *uploadsResolver) Resolve(ctx context.Context) error {
@@ -116,10 +117,7 @@ type indexesResolver struct {
 }
 
 func NewIndexesResolver(store store.Store, opts store.GetIndexesOptions) *indexesResolver {
-	return &indexesResolver{
-		store: store,
-		opts:  opts,
-	}
+	return &indexesResolver{store: store, opts: opts}
 }
 
 func (r *indexesResolver) Resolve(ctx context.Context) error {
