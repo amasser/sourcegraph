@@ -11,6 +11,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	"github.com/sourcegraph/sourcegraph/internal/api"
+	"github.com/sourcegraph/sourcegraph/internal/campaigns"
 	"github.com/sourcegraph/sourcegraph/internal/vcs/git"
 )
 
@@ -78,4 +79,26 @@ func ComputeGitDiffStat(ctx context.Context, repo *Repo, baseRefOid, headRefOid 
 	}
 
 	return &stat, nil
+}
+
+func gitDiffHasChanged(cs *campaigns.Changeset, base, head string) bool {
+	// If the changeset doesn't have a diffstat, we'll just update regardless.
+	// TODO: should we have the same behaviour if all values are 0?
+	if cs.DiffStatAdded == nil || cs.DiffStatChanged == nil || cs.DiffStatDeleted == nil {
+		return true
+	}
+
+	// If we get an error getting the base or head OID, then we'll just update
+	// no matter what.
+	oldBase, err := cs.BaseRefOid()
+	if err != nil {
+		return true
+	}
+
+	oldHead, err := cs.HeadRefOid()
+	if err != nil {
+		return true
+	}
+
+	return oldBase != base || oldHead != head
 }

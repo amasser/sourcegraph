@@ -12,7 +12,6 @@ import (
 
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
-	"github.com/sourcegraph/sourcegraph/internal/campaigns"
 	"github.com/sourcegraph/sourcegraph/internal/conf/reposource"
 	"github.com/sourcegraph/sourcegraph/internal/extsvc"
 	"github.com/sourcegraph/sourcegraph/internal/extsvc/github"
@@ -229,7 +228,7 @@ func (s GithubSource) LoadChangesets(ctx context.Context, cs ...*Changeset) erro
 	}
 
 	for i := range cs {
-		if hasGitHubDiffChanged(cs[i].Changeset, prs[i]) {
+		if gitDiffHasChanged(cs[i].Changeset, prs[i].BaseRefOid, prs[i].HeadRefOid) {
 			stat, err := ComputeGitDiffStat(ctx, cs[i].Repo, prs[i].BaseRefOid, prs[i].HeadRefOid)
 			if err != nil {
 				return errors.Wrap(err, "updating changeset diffstat")
@@ -243,28 +242,6 @@ func (s GithubSource) LoadChangesets(ctx context.Context, cs ...*Changeset) erro
 	}
 
 	return nil
-}
-
-func hasGitHubDiffChanged(cs *campaigns.Changeset, pr *github.PullRequest) bool {
-	// If the changeset doesn't have a diffstat, we'll just update regardless.
-	// TODO: should we have the same behaviour if all values are 0?
-	if cs.DiffStatAdded == nil || cs.DiffStatChanged == nil || cs.DiffStatDeleted == nil {
-		return true
-	}
-
-	// If we get an error getting the base or head OID, then we'll just update
-	// no matter what.
-	oldBase, err := cs.BaseRefOid()
-	if err != nil {
-		return true
-	}
-
-	oldHead, err := cs.HeadRefOid()
-	if err != nil {
-		return true
-	}
-
-	return oldBase != pr.BaseRefOid || oldHead != pr.HeadRefOid
 }
 
 // UpdateChangeset updates the given *Changeset in the code host.
