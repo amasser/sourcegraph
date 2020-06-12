@@ -10,8 +10,81 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
+	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
+	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/vcs/git"
 )
+
+type PositionAdjuster interface {
+	// In
+	AdjustPath(ctx context.Context, uploadCommit string) (string, bool, error)
+	AdjustPosition(ctx context.Context, commit string, requestedLine, requestedCharacter int) (string, int, int, bool, error)
+
+	// Out
+	AdjustRange(ctx context.Context, commit string, r lsp.Range) (lsp.Range, bool, error)
+	AdjustLocation(ctx context.Context, repositoryID int, commit, path string, r bundles.Range) (string, lsp.Range, error)
+}
+
+type realPositionAdjuster struct {
+	repo            *types.Repo
+	requestedCommit string
+	requestedPath   string
+}
+
+func NewPositionAdjuster(repo *types.Repo, requestedCommit, requestedPath string) PositionAdjuster {
+	return &realPositionAdjuster{
+		repo:            repo,
+		requestedCommit: requestedCommit,
+		requestedPath:   requestedPath,
+	}
+}
+
+func (p *realPositionAdjuster) AdjustPath(ctx context.Context, commit string) (string, bool, error) {
+	return p.requestedPath, true, nil
+}
+
+func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit string, requestedLine, requestedCharacter int) (string, int, int, bool, error) {
+	adjuster, err := newPositionAdjuster(ctx, p.repo, p.requestedCommit, commit, p.requestedPath)
+	if err != nil {
+		return "", 0, 0, false, err
+	}
+
+	adjusted, ok := adjuster.adjustPosition(lsp.Position{Line: requestedLine, Character: requestedCharacter})
+	return p.requestedPath, adjusted.Line, adjusted.Character, ok, nil
+}
+
+func (p *realPositionAdjuster) AdjustLocation(ctx context.Context, locationRepositoryID int, commit, path string, rx bundles.Range) (string, lsp.Range, error) {
+	if api.RepoID(locationRepositoryID) != p.repo.ID {
+		return commit, convertRange(rx), nil
+	}
+
+	adjuster, err := newPositionAdjuster(ctx, p.repo, commit, p.requestedCommit, path)
+	if err != nil {
+		return "", lsp.Range{}, err
+	}
+
+	if adjustedRange, ok := adjuster.adjustRange(convertRange(rx)); ok {
+		return p.requestedCommit, adjustedRange, nil
+	}
+
+	// Couldn't adjust range, return original result which is precise but
+	// jump the user to another into another commit context on navigation.
+	return commit, convertRange(rx), nil
+}
+
+func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit string, rx lsp.Range) (lsp.Range, bool, error) {
+	adjuster, err := newPositionAdjuster(ctx, p.repo, commit, p.requestedCommit, p.requestedPath)
+	if err != nil {
+		return lsp.Range{}, false, err
+	}
+
+	adjusted, ok := adjuster.adjustRange(rx)
+	return adjusted, ok, nil
+}
+
+//
+// TODO
+//
 
 type positionAdjuster struct {
 	hunks []*diff.Hunk

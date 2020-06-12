@@ -61,25 +61,16 @@ func (r *Resolver) DeleteIndexByID(ctx context.Context, id int) error {
 }
 
 func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (*QueryResolver, error) {
-	dumps, err := r.codeIntelAPI.FindClosestDumps(
-		ctx,
-		int(args.Repository.Type().ID),
-		string(args.Commit),
-		args.Path,
-		args.ExactPath,
-		args.ToolName,
-	)
+	repo := args.Repository.Type()
+	repositoryID := int(repo.ID)
+	commit := string(args.Commit)
+	path := args.Path
+
+	dumps, err := r.codeIntelAPI.FindClosestDumps(ctx, repositoryID, commit, path, args.ExactPath, args.ToolName)
 	if err != nil || len(dumps) == 0 {
 		return nil, err
 	}
 
-	return NewQueryResolver(
-		r.store,
-		r.bundleManagerClient,
-		r.codeIntelAPI,
-		args.Repository.Type(),
-		args.Commit,
-		args.Path,
-		dumps,
-	), nil
+	positionAdjuster := NewPositionAdjuster(repo, commit, path)
+	return NewQueryResolver(r.store, r.bundleManagerClient, r.codeIntelAPI, positionAdjuster, repositoryID, commit, dumps), nil
 }
