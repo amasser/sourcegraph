@@ -2,17 +2,7 @@ package resolvers
 
 import (
 	"fmt"
-
-	"github.com/sourcegraph/go-lsp"
-	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 )
-
-func convertRange(r bundles.Range) lsp.Range {
-	return lsp.Range{
-		Start: lsp.Position{Line: r.Start.Line, Character: r.Start.Character},
-		End:   lsp.Position{Line: r.End.Line, Character: r.End.Character},
-	}
-}
 
 var severities = map[int]string{
 	1: "ERROR",
@@ -30,6 +20,7 @@ func toSeverity(val int) (*string, error) {
 	return &severity, nil
 }
 
+// TODO - rename
 func strPtr(val string) *string {
 	if val == "" {
 		return nil
@@ -38,6 +29,7 @@ func strPtr(val string) *string {
 	return &val
 }
 
+// TODO - rename
 func int32Ptr(val *int) *int32 {
 	if val == nil {
 		return nil
@@ -45,4 +37,25 @@ func int32Ptr(val *int) *int32 {
 
 	v := int32(*val)
 	return &v
+}
+
+// TODO - rename
+func strDefault(val *string, defaultValue string) string {
+	if val != nil {
+		return *val
+	}
+	return defaultValue
+}
+
+// TODO - rename
+func int32Default(val *int32, defaultValue int) int {
+	if val != nil {
+		return int(*val)
+	}
+	return defaultValue
+}
+
+// TODO - rename
+func boolDefault(val *bool, defaultValue bool) bool {
+	return (val != nil && *val) || defaultValue
 }

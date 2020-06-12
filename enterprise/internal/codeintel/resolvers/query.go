@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 
 	"github.com/sourcegraph/go-lsp"
-	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
@@ -16,60 +14,21 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
-type lsifQueryResolver struct {
-	resolver *realLsifQueryResolver
+type AdjustedLocation struct {
+	dump           store.Dump
+	path           string
+	adjustedCommit string
+	adjustedRange  lsp.Range
 }
 
-var _ gql.GitBlobLSIFDataResolver = &lsifQueryResolver{}
-
-func (r *lsifQueryResolver) ToGitTreeLSIFData() (gql.GitTreeLSIFDataResolver, bool) {
-	return r, true
+type AdjustedDiagnostic struct {
+	bundles.Diagnostic
+	dump           store.Dump
+	adjustedCommit string
+	adjustedRange  lsp.Range
 }
 
-func (r *lsifQueryResolver) ToGitBlobLSIFData() (gql.GitBlobLSIFDataResolver, bool) {
-	return r, true
-}
-
-func (r *lsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryPositionArgs) (gql.LocationConnectionResolver, error) {
-	locations, err := r.resolver.Definitions(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return &locationConnectionResolver{locations: locations}, nil
-}
-
-func (r *lsifQueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) (gql.LocationConnectionResolver, error) {
-	locations, cursor, err := r.resolver.References(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return &locationConnectionResolver{locations: locations, endCursor: cursor}, nil
-}
-
-func (r *lsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionArgs) (gql.HoverResolver, error) {
-	text, lspRange, exists, err := r.resolver.Hover(ctx, args)
-	if err != nil || !exists {
-		return nil, err
-	}
-
-	return &hoverResolver{text: text, lspRange: lspRange}, nil
-}
-
-func (r *lsifQueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFDiagnosticsArgs) (gql.DiagnosticConnectionResolver, error) {
-	diagnostics, totalCount, err := r.resolver.Diagnostics(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return &diagnosticConnectionResolver{totalCount: totalCount, diagnostics: diagnostics}, nil
-}
-
-//
-//
-
-type realLsifQueryResolver struct {
+type queryResolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
@@ -79,11 +38,30 @@ type realLsifQueryResolver struct {
 	uploads             []store.Dump
 }
 
-// TODO - parse args prior to this
-func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryPositionArgs) ([]AdjustedLocation, error) {
+func NewQueryResolver(
+	store store.Store,
+	bundleManagerClient bundles.BundleManagerClient,
+	codeIntelAPI codeintelapi.CodeIntelAPI,
+	repo *types.Repo,
+	commit api.CommitID,
+	path string,
+	uploads []store.Dump,
+) *queryResolver {
+	return &queryResolver{
+		store:               store,
+		bundleManagerClient: bundleManagerClient,
+		codeIntelAPI:        codeIntelAPI,
+		repo:                repo,
+		commit:              commit,
+		path:                path,
+		uploads:             uploads,
+	}
+}
+
+func (r *queryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
 	for _, upload := range r.uploads {
 		// TODO(efritz) - we should also detect renames/copies on position adjustment
-		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
+		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, int32(line), int32(character))
 		if err != nil {
 			return nil, err
 		}
@@ -119,13 +97,12 @@ func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQ
 	return nil, nil
 }
 
-// TODO - parse args prior to this
-func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) ([]AdjustedLocation, string, error) {
+func (r *queryResolver) References(ctx context.Context, line, character, limit int, rawCursor string) ([]AdjustedLocation, string, error) {
 	// Decode a map of upload ids to the next url that serves
 	// the new page of results. This may not include an entry
 	// for every upload if their result sets have already been
 	// exhausted.
-	cursors, err := readCursor(args.After)
+	cursors, err := readCursor(rawCursor)
 	if err != nil {
 		return nil, "", err
 	}
@@ -137,21 +114,12 @@ func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPa
 
 	var allLocations []codeintelapi.ResolvedLocation
 	for _, upload := range r.uploads {
-		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
+		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, int32(line), int32(character))
 		if err != nil {
 			return nil, "", err
 		}
 		if !ok {
 			continue
-		}
-
-		limit := DefaultReferencesPageSize
-		if args.First != nil {
-			limit = int(*args.First)
-		}
-		if limit <= 0 {
-			// TODO(efritz) - check on defs too
-			return nil, "", errors.New("illegal limit")
 		}
 
 		rawCursor := ""
@@ -215,10 +183,9 @@ func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPa
 	return adjustedLocations, endCursor, nil
 }
 
-// TODO - parse args prior to this
-func (r *realLsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionArgs) (string, lsp.Range, bool, error) {
+func (r *queryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
 	for _, upload := range r.uploads {
-		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
+		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, int32(line), int32(character))
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -226,8 +193,7 @@ func (r *realLsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPo
 			continue
 		}
 
-		// TODO(efritz) - codeintelapi should just return an lsp.Hover
-		text, rn, exists, err := r.codeIntelAPI.Hover(ctx, r.path, adjustedPosition.Line, adjustedPosition.Character, int(upload.ID))
+		text, rn, exists, err := r.codeIntelAPI.Hover(ctx, r.path, adjustedPosition.Line, adjustedPosition.Character, upload.ID)
 		if err != nil || !exists {
 			return "", lsp.Range{}, false, err
 		}
@@ -255,16 +221,7 @@ func (r *realLsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPo
 	return "", lsp.Range{}, false, nil
 }
 
-// TODO - parse args prior to this
-func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFDiagnosticsArgs) ([]AdjustedDiagnostic, int, error) {
-	limit := DefaultDiagnosticsPageSize
-	if args.First != nil {
-		limit = int(*args.First)
-	}
-	if limit <= 0 {
-		return nil, 0, errors.New("illegal limit")
-	}
-
+func (r *queryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedDiagnostic, int, error) {
 	totalCount := 0
 	var allDiagnostics []codeintelapi.ResolvedDiagnostic
 	for _, upload := range r.uploads {
@@ -307,7 +264,7 @@ func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFD
 
 // adjustPosition adjusts the position denoted by `line` and `character` in the requested commit into an
 // LSP position in the upload commit. This method returns nil if no equivalent position is found.
-func (r *realLsifQueryResolver) adjustPosition(ctx context.Context, uploadCommit string, line, character int32) (lsp.Position, bool, error) {
+func (r *queryResolver) adjustPosition(ctx context.Context, uploadCommit string, line, character int32) (lsp.Position, bool, error) {
 	adjuster, err := newPositionAdjuster(ctx, r.repo, string(r.commit), uploadCommit, r.path)
 	if err != nil {
 		return lsp.Position{}, false, err
@@ -326,13 +283,13 @@ func (r *realLsifQueryResolver) adjustPosition(ctx context.Context, uploadCommit
 //
 // A non-nil error means the connection resolver was unable to load the diff between
 // the requested commit and location's commit.
-func (r *realLsifQueryResolver) adjustLocation(ctx context.Context, location codeintelapi.ResolvedLocation) (string, lsp.Range, error) {
+func (r *queryResolver) adjustLocation(ctx context.Context, location codeintelapi.ResolvedLocation) (string, lsp.Range, error) {
 	return adjustLocation(ctx, location.Dump.RepositoryID, location.Dump.Commit, location.Path, location.Range, r.repo, r.commit)
 }
 
 // adjustPosition adjusts the given range in the upload commit into an equivalent range in the requested
 // commit. This method returns nil if there is not an equivalent position for both endpoints of the range.
-func (r *realLsifQueryResolver) adjustRange(ctx context.Context, uploadCommit string, lspRange lsp.Range) (lsp.Range, bool, error) {
+func (r *queryResolver) adjustRange(ctx context.Context, uploadCommit string, lspRange lsp.Range) (lsp.Range, bool, error) {
 	adjuster, err := newPositionAdjuster(ctx, r.repo, uploadCommit, string(r.commit), r.path)
 	if err != nil {
 		return lsp.Range{}, false, err
@@ -363,12 +320,12 @@ func adjustLocation(ctx context.Context, locationRepositoryID int, locationCommi
 
 // readCursor decodes a cursor into a map from upload ids to URLs that
 // serves the next page of results.
-func readCursor(after *string) (map[int]string, error) {
-	if after == nil {
+func readCursor(after string) (map[int]string, error) {
+	if after == "" {
 		return nil, nil
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(*after)
+	decoded, err := base64.StdEncoding.DecodeString(after)
 	if err != nil {
 		return nil, err
 	}
@@ -393,4 +350,12 @@ func makeCursor(cursors map[int]string) (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(encoded), nil
+}
+
+func convertRange(r bundles.Range) lsp.Range {
+	return lsp.Range{Start: convertPosition(r.Start.Line, r.Start.Character), End: convertPosition(r.End.Line, r.End.Character)}
+}
+
+func convertPosition(line, character int) lsp.Position {
+	return lsp.Position{Line: line, Character: character}
 }
