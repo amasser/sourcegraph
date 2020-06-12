@@ -10,6 +10,8 @@ import (
 
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
+	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/conf/reposource"
 	"github.com/sourcegraph/sourcegraph/internal/extsvc"
@@ -176,6 +178,11 @@ func (s BitbucketServerSource) LoadChangesets(ctx context.Context, cs ...*Change
 		if err != nil {
 			return errors.Wrap(err, "loading pull request data")
 		}
+		err = s.loadRevData(ctx, pr, cs[i].Repo)
+		if err != nil {
+			return errors.Wrap(err, "loading revision data")
+		}
+		// TODO: calculate diffstat if necessary.
 		if err = cs[i].SetMetadata(pr); err != nil {
 			return errors.Wrap(err, "setting changeset metadata")
 		}
@@ -202,6 +209,37 @@ func (s BitbucketServerSource) loadPullRequestData(ctx context.Context, pr *bitb
 	}
 
 	return nil
+}
+
+func (s BitbucketServerSource) loadRevData(ctx context.Context, pr *bitbucketserver.PullRequest, repo *Repo) error {
+	base, err := s.computeRevForRef(ctx, repo, &pr.FromRef)
+	if err != nil {
+		return errors.Wrap(err, "computing rev for FromRef")
+	}
+
+	head, err := s.computeRevForRef(ctx, repo, &pr.ToRef)
+	if err != nil {
+		return errors.Wrap(err, "computing rev for ToRef")
+	}
+
+	pr.FromRefRev = string(base)
+	pr.ToRefRev = string(head)
+
+	return nil
+}
+
+func (s BitbucketServerSource) computeRevForRef(ctx context.Context, repo *Repo, ref *bitbucketserver.Ref) (api.CommitID, error) {
+	rr, err := backend.GitRepo(ctx, &types.Repo{
+		Name:         api.RepoName(repo.Name),
+		ExternalRepo: repo.ExternalRepo,
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "converting Repo to gitserver.Repo")
+	}
+
+	return git.ResolveRevision(ctx, rr, func() (string, error) { return repo.URI, nil }, ref.ID, &git.ResolveRevisionOptions{
+		NoEnsureRevision: false,
+	})
 }
 
 func (s BitbucketServerSource) UpdateChangeset(ctx context.Context, c *Changeset) error {
