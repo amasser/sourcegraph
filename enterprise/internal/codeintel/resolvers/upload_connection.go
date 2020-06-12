@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 
 	graphql "github.com/graph-gophers/graphql-go"
@@ -75,7 +73,7 @@ type LSIFUploadsListOptions struct {
 
 type realLsifUploadConnectionResolver struct {
 	store store.Store
-	opt   LSIFUploadsListOptions
+	opts  store.GetUploadsOptions
 	once  sync.Once
 	//
 	uploads    []store.Upload
@@ -90,56 +88,17 @@ func (r *realLsifUploadConnectionResolver) Compute(ctx context.Context) error {
 }
 
 func (r *realLsifUploadConnectionResolver) compute(ctx context.Context) error {
-	var id int
-	if r.opt.RepositoryID != "" {
-		repositoryResolver, err := gql.RepositoryByID(ctx, r.opt.RepositoryID)
-		if err != nil {
-			return err
-		}
-
-		id = int(repositoryResolver.Type().ID)
-	}
-	query := ""
-
-	if r.opt.Query != nil {
-		query = *r.opt.Query
-	}
-
-	state := ""
-	if r.opt.State != nil {
-		state = strings.ToLower(*r.opt.State)
-	}
-
-	limit := DefaultUploadPageSize
-	if r.opt.Limit != nil {
-		limit = int(*r.opt.Limit)
-	}
-
-	offset := 0
-	if r.opt.NextURL != nil {
-		offset, _ = strconv.Atoi(*r.opt.NextURL)
-	}
-
-	uploads, totalCount, err := r.store.GetUploads(ctx, store.GetUploadsOptions{
-		RepositoryID: id,
-		State:        state,
-		Term:         query,
-		VisibleAtTip: r.opt.IsLatestForRepo != nil && *r.opt.IsLatestForRepo,
-		Limit:        limit,
-		Offset:       offset,
-	})
+	uploads, totalCount, err := r.store.GetUploads(ctx, r.opts)
 	if err != nil {
 		return err
 	}
 
 	cursor := ""
-	if offset+len(uploads) < totalCount {
-		cursor = fmt.Sprintf("%d", offset+len(uploads))
+	if r.opts.Offset+len(uploads) < totalCount {
+		cursor = fmt.Sprintf("%d", r.opts.Offset+len(uploads))
 	}
 
-	us := uploads
-
-	r.uploads = us
+	r.uploads = uploads
 	r.nextURL = cursor
 	r.totalCount = &totalCount
 	return nil

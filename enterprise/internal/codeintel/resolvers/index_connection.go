@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 
 	graphql "github.com/graph-gophers/graphql-go"
@@ -73,7 +71,7 @@ type LSIFIndexesListOptions struct {
 
 type realLsifIndexConnectionResolver struct {
 	store store.Store
-	opt   LSIFIndexesListOptions
+	opts  store.GetIndexesOptions
 	once  sync.Once
 	//
 	indexes    []store.Index
@@ -88,55 +86,17 @@ func (r *realLsifIndexConnectionResolver) Compute(ctx context.Context) error {
 }
 
 func (r *realLsifIndexConnectionResolver) compute(ctx context.Context) error {
-	var id int
-	if r.opt.RepositoryID != "" {
-		repositoryResolver, err := gql.RepositoryByID(ctx, r.opt.RepositoryID)
-		if err != nil {
-			return err
-		}
-
-		id = int(repositoryResolver.Type().ID)
-	}
-
-	query := ""
-	if r.opt.Query != nil {
-		query = *r.opt.Query
-	}
-
-	state := ""
-	if r.opt.State != nil {
-		state = strings.ToLower(*r.opt.State)
-	}
-
-	limit := DefaultIndexPageSize
-	if r.opt.Limit != nil {
-		limit = int(*r.opt.Limit)
-	}
-
-	offset := 0
-	if r.opt.NextURL != nil {
-		offset, _ = strconv.Atoi(*r.opt.NextURL)
-	}
-
-	indexes, totalCount, err := r.store.GetIndexes(ctx, store.GetIndexesOptions{
-		RepositoryID: id,
-		State:        state,
-		Term:         query,
-		Limit:        limit,
-		Offset:       offset,
-	})
+	indexes, totalCount, err := r.store.GetIndexes(ctx, r.opts)
 	if err != nil {
 		return err
 	}
 
 	cursor := ""
-	if offset+len(indexes) < totalCount {
-		cursor = fmt.Sprintf("%d", offset+len(indexes))
+	if r.opts.Offset+len(indexes) < totalCount {
+		cursor = fmt.Sprintf("%d", r.opts.Offset+len(indexes))
 	}
 
-	is := indexes
-
-	r.indexes = is
+	r.indexes = indexes
 	r.nextURL = cursor
 	r.totalCount = &totalCount
 	return nil

@@ -3,6 +3,8 @@ package resolvers
 import (
 	"context"
 	"encoding/base64"
+	"strconv"
+	"strings"
 
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/pkg/errors"
@@ -43,20 +45,19 @@ func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFU
 }
 
 func (r *Resolver) LSIFUploads(ctx context.Context, args *gql.LSIFUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
-	return r.LSIFUploadsByRepo(ctx, &gql.LSIFRepositoryUploadsQueryArgs{
-		LSIFUploadsQueryArgs: args,
-	})
+	return r.LSIFUploadsByRepo(ctx, &gql.LSIFRepositoryUploadsQueryArgs{LSIFUploadsQueryArgs: args})
 }
 
 func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *gql.LSIFRepositoryUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
-	opt := LSIFUploadsListOptions{
+	// TODO - remove this type
+	opts := LSIFUploadsListOptions{
 		RepositoryID:    args.RepositoryID,
 		Query:           args.Query,
 		State:           args.State,
 		IsLatestForRepo: args.IsLatestForRepo,
 	}
 	if args.First != nil {
-		opt.Limit = args.First
+		opts.Limit = args.First
 	}
 	if args.After != nil {
 		decoded, err := base64.StdEncoding.DecodeString(*args.After)
@@ -64,10 +65,15 @@ func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *gql.LSIFReposito
 			return nil, err
 		}
 		nextURL := string(decoded)
-		opt.NextURL = &nextURL
+		opts.NextURL = &nextURL
 	}
 
-	return &uploadConnectionResolver{resolver: r.resolver.UploadConnectionResolver(opt)}, nil
+	opts2, err := toGetUploadsOptions(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &uploadConnectionResolver{resolver: r.resolver.UploadConnectionResolver(opts2)}, nil
 }
 
 func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {
@@ -103,19 +109,18 @@ func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (gql.LSIFIn
 }
 
 func (r *Resolver) LSIFIndexes(ctx context.Context, args *gql.LSIFIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
-	return r.LSIFIndexesByRepo(ctx, &gql.LSIFRepositoryIndexesQueryArgs{
-		LSIFIndexesQueryArgs: args,
-	})
+	return r.LSIFIndexesByRepo(ctx, &gql.LSIFRepositoryIndexesQueryArgs{LSIFIndexesQueryArgs: args})
 }
 
 func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *gql.LSIFRepositoryIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
-	opt := LSIFIndexesListOptions{
+	// TODO - remove this type
+	opts := LSIFIndexesListOptions{
 		RepositoryID: args.RepositoryID,
 		Query:        args.Query,
 		State:        args.State,
 	}
 	if args.First != nil {
-		opt.Limit = args.First
+		opts.Limit = args.First
 	}
 	if args.After != nil {
 		decoded, err := base64.StdEncoding.DecodeString(*args.After)
@@ -123,10 +128,15 @@ func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *gql.LSIFReposito
 			return nil, err
 		}
 		nextURL := string(decoded)
-		opt.NextURL = &nextURL
+		opts.NextURL = &nextURL
 	}
 
-	return &indexConnectionResolver{resolver: r.resolver.IndexConnectionResolver(opt)}, nil
+	opts2, err := toGetIndexesOptions(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &indexConnectionResolver{resolver: r.resolver.IndexConnectionResolver(opts2)}, nil
 }
 
 func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {
@@ -159,6 +169,90 @@ func (r *Resolver) GitBlobLSIFData(ctx context.Context, args *gql.GitBlobLSIFDat
 //
 //
 
+func toGetUploadsOptions(ctx context.Context, opts LSIFUploadsListOptions) (store.GetUploadsOptions, error) {
+	var id int
+	if opts.RepositoryID != "" {
+		repositoryResolver, err := gql.RepositoryByID(ctx, opts.RepositoryID)
+		if err != nil {
+			return store.GetUploadsOptions{}, err
+		}
+
+		id = int(repositoryResolver.Type().ID)
+	}
+	query := ""
+
+	if opts.Query != nil {
+		query = *opts.Query
+	}
+
+	state := ""
+	if opts.State != nil {
+		state = strings.ToLower(*opts.State)
+	}
+
+	limit := DefaultUploadPageSize
+	if opts.Limit != nil {
+		limit = int(*opts.Limit)
+	}
+
+	offset := 0
+	if opts.NextURL != nil {
+		offset, _ = strconv.Atoi(*opts.NextURL)
+	}
+
+	return store.GetUploadsOptions{
+		RepositoryID: id,
+		State:        state,
+		Term:         query,
+		VisibleAtTip: opts.IsLatestForRepo != nil && *opts.IsLatestForRepo,
+		Limit:        limit,
+		Offset:       offset,
+	}, nil
+}
+
+func toGetIndexesOptions(ctx context.Context, opts LSIFIndexesListOptions) (store.GetIndexesOptions, error) {
+	var id int
+	if opts.RepositoryID != "" {
+		repositoryResolver, err := gql.RepositoryByID(ctx, opts.RepositoryID)
+		if err != nil {
+			return store.GetIndexesOptions{}, err
+		}
+
+		id = int(repositoryResolver.Type().ID)
+	}
+
+	query := ""
+	if opts.Query != nil {
+		query = *opts.Query
+	}
+
+	state := ""
+	if opts.State != nil {
+		state = strings.ToLower(*opts.State)
+	}
+
+	limit := DefaultIndexPageSize
+	if opts.Limit != nil {
+		limit = int(*opts.Limit)
+	}
+
+	offset := 0
+	if opts.NextURL != nil {
+		offset, _ = strconv.Atoi(*opts.NextURL)
+	}
+
+	return store.GetIndexesOptions{
+		RepositoryID: id,
+		State:        state,
+		Term:         query,
+		Limit:        limit,
+		Offset:       offset,
+	}, nil
+}
+
+//
+//
+
 type realResolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
@@ -173,12 +267,12 @@ func (r *realResolver) GetIndexByID(ctx context.Context, id int) (store.Index, b
 	return r.store.GetIndexByID(ctx, id)
 }
 
-func (r *realResolver) UploadConnectionResolver(opt LSIFUploadsListOptions) *realLsifUploadConnectionResolver {
-	return &realLsifUploadConnectionResolver{store: r.store, opt: opt}
+func (r *realResolver) UploadConnectionResolver(opts store.GetUploadsOptions) *realLsifUploadConnectionResolver {
+	return &realLsifUploadConnectionResolver{store: r.store, opts: opts}
 }
 
-func (r *realResolver) IndexConnectionResolver(opt LSIFIndexesListOptions) *realLsifIndexConnectionResolver {
-	return &realLsifIndexConnectionResolver{store: r.store, opt: opt}
+func (r *realResolver) IndexConnectionResolver(opts store.GetIndexesOptions) *realLsifIndexConnectionResolver {
+	return &realLsifIndexConnectionResolver{store: r.store, opts: opts}
 }
 
 func (r *realResolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
