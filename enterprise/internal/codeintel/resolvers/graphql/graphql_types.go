@@ -7,6 +7,7 @@ import (
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/sourcegraph/go-lsp"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
@@ -78,11 +79,11 @@ func (r *gqlHoverResolver) Range() gql.RangeResolver       { return gql.NewRange
 //
 
 type gqlDiagnosticResolver struct {
-	diagnostic         AdjustedDiagnostic
+	diagnostic         resolvers.AdjustedDiagnostic
 	collectionResolver *repositoryCollectionResolver
 }
 
-func NewGraphQLDiagnosticResolver(diagnostic AdjustedDiagnostic, collectionResolver *repositoryCollectionResolver) gql.DiagnosticResolver {
+func NewGraphQLDiagnosticResolver(diagnostic resolvers.AdjustedDiagnostic, collectionResolver *repositoryCollectionResolver) gql.DiagnosticResolver {
 	return &gqlDiagnosticResolver{diagnostic: diagnostic, collectionResolver: collectionResolver}
 }
 
@@ -95,11 +96,11 @@ func (r *gqlDiagnosticResolver) Location(ctx context.Context) (gql.LocationResol
 	return resolveLocation(
 		ctx,
 		r.collectionResolver,
-		AdjustedLocation{
-			dump:           r.diagnostic.dump,
-			path:           r.diagnostic.adjustedCommit,
-			adjustedCommit: r.diagnostic.Path,
-			adjustedRange:  r.diagnostic.adjustedRange,
+		resolvers.AdjustedLocation{
+			Dump:           r.diagnostic.Dump,
+			Path:           r.diagnostic.AdjustedCommit,
+			AdjustedCommit: r.diagnostic.Path,
+			AdjustedRange:  r.diagnostic.AdjustedRange,
 		},
 	)
 }

@@ -5,11 +5,12 @@ import (
 
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers"
 )
 
-type gqlUploadConnectionResolver struct{ resolver *uploadsResolver }
+type gqlUploadConnectionResolver struct{ resolver *resolvers.UploadsResolver }
 
-func NewGraphQLUploadConnectionResolver(resolver *uploadsResolver) gql.LSIFUploadConnectionResolver {
+func NewGraphQLUploadConnectionResolver(resolver *resolvers.UploadsResolver) gql.LSIFUploadConnectionResolver {
 	return &gqlUploadConnectionResolver{resolver: resolver}
 }
 
@@ -18,9 +19,9 @@ func (r *gqlUploadConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFUplo
 		return nil, err
 	}
 
-	resolvers := make([]gql.LSIFUploadResolver, 0, len(r.resolver.uploads))
-	for i := range r.resolver.uploads {
-		resolvers = append(resolvers, NewGraphQLUploadResolver(r.resolver.uploads[i]))
+	resolvers := make([]gql.LSIFUploadResolver, 0, len(r.resolver.Uploads))
+	for i := range r.resolver.Uploads {
+		resolvers = append(resolvers, NewGraphQLUploadResolver(r.resolver.Uploads[i]))
 	}
 
 	return resolvers, nil
@@ -30,22 +31,22 @@ func (r *gqlUploadConnectionResolver) TotalCount(ctx context.Context) (*int32, e
 	if err := r.resolver.Resolve(ctx); err != nil {
 		return nil, err
 	}
-	return int32Ptr(&r.resolver.totalCount), nil
+	return int32Ptr(&r.resolver.TotalCount), nil
 }
 
 func (r *gqlUploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
 	if err := r.resolver.Resolve(ctx); err != nil {
 		return nil, err
 	}
-	return encodeIntCursor(r.resolver.nextOffset), nil
+	return encodeIntCursor(r.resolver.NextOffset), nil
 }
 
 //
 //
 
-type gqlIndexConnectionResolver struct{ resolver *indexesResolver }
+type gqlIndexConnectionResolver struct{ resolver *resolvers.IndexesResolver }
 
-func NewGraphQLIndexConnectionResolver(resolver *indexesResolver) gql.LSIFIndexConnectionResolver {
+func NewGraphQLIndexConnectionResolver(resolver *resolvers.IndexesResolver) gql.LSIFIndexConnectionResolver {
 	return &gqlIndexConnectionResolver{resolver: resolver}
 }
 
@@ -54,9 +55,9 @@ func (r *gqlIndexConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFIndex
 		return nil, err
 	}
 
-	resolvers := make([]gql.LSIFIndexResolver, 0, len(r.resolver.indexes))
-	for i := range r.resolver.indexes {
-		resolvers = append(resolvers, NewGraphQLIndexResolver(r.resolver.indexes[i]))
+	resolvers := make([]gql.LSIFIndexResolver, 0, len(r.resolver.Indexes))
+	for i := range r.resolver.Indexes {
+		resolvers = append(resolvers, NewGraphQLIndexResolver(r.resolver.Indexes[i]))
 	}
 
 	return resolvers, nil
@@ -66,25 +67,25 @@ func (r *gqlIndexConnectionResolver) TotalCount(ctx context.Context) (*int32, er
 	if err := r.resolver.Resolve(ctx); err != nil {
 		return nil, err
 	}
-	return int32Ptr(&r.resolver.totalCount), nil
+	return int32Ptr(&r.resolver.TotalCount), nil
 }
 
 func (r *gqlIndexConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
 	if err := r.resolver.Resolve(ctx); err != nil {
 		return nil, err
 	}
-	return encodeIntCursor(r.resolver.nextOffset), nil
+	return encodeIntCursor(r.resolver.NextOffset), nil
 }
 
 //
 //
 
 type gqlLocationConnectionResolver struct {
-	locations []AdjustedLocation
+	locations []resolvers.AdjustedLocation
 	cursor    *string
 }
 
-func NewGraphQLLocationConnectionResolver(locations []AdjustedLocation, cursor *string) gql.LocationConnectionResolver {
+func NewGraphQLLocationConnectionResolver(locations []resolvers.AdjustedLocation, cursor *string) gql.LocationConnectionResolver {
 	return &gqlLocationConnectionResolver{locations: locations, cursor: cursor}
 }
 
@@ -100,11 +101,11 @@ func (r *gqlLocationConnectionResolver) PageInfo(ctx context.Context) (*graphqlu
 //
 
 type gqlDiagnosticConnectionResolver struct {
-	diagnostics []AdjustedDiagnostic
+	diagnostics []resolvers.AdjustedDiagnostic
 	totalCount  int
 }
 
-func NewGraphQLDiagnosticConnectionResolver(diagnostics []AdjustedDiagnostic, totalCount int) gql.DiagnosticConnectionResolver {
+func NewGraphQLDiagnosticConnectionResolver(diagnostics []resolvers.AdjustedDiagnostic, totalCount int) gql.DiagnosticConnectionResolver {
 	return &gqlDiagnosticConnectionResolver{diagnostics: diagnostics, totalCount: totalCount}
 }
 

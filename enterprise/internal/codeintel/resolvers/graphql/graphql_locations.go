@@ -6,12 +6,13 @@ import (
 
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/gitserver"
 	"github.com/sourcegraph/sourcegraph/internal/vcs/git"
 )
 
-func resolveLocations(ctx context.Context, collectionResolver *repositoryCollectionResolver, locations []AdjustedLocation) ([]gql.LocationResolver, error) {
+func resolveLocations(ctx context.Context, collectionResolver *repositoryCollectionResolver, locations []resolvers.AdjustedLocation) ([]gql.LocationResolver, error) {
 	resolvedLocations := make([]gql.LocationResolver, 0, len(locations))
 	for i := range locations {
 		resolver, err := resolveLocation(ctx, collectionResolver, locations[i])
@@ -28,8 +29,8 @@ func resolveLocations(ctx context.Context, collectionResolver *repositoryCollect
 	return resolvedLocations, nil
 }
 
-func resolveLocation(ctx context.Context, collectionResolver *repositoryCollectionResolver, location AdjustedLocation) (gql.LocationResolver, error) {
-	treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.dump.RepositoryID), location.adjustedCommit, location.path)
+func resolveLocation(ctx context.Context, collectionResolver *repositoryCollectionResolver, location resolvers.AdjustedLocation) (gql.LocationResolver, error) {
+	treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.Dump.RepositoryID), location.AdjustedCommit, location.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func resolveLocation(ctx context.Context, collectionResolver *repositoryCollecti
 		return nil, nil
 	}
 
-	return gql.NewLocationResolver(treeResolver, &location.adjustedRange), nil
+	return gql.NewLocationResolver(treeResolver, &location.AdjustedRange), nil
 }
 
 type repositoryCollectionResolver struct {

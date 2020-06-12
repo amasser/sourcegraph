@@ -38,7 +38,7 @@ import (
 	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 	codeintelgitserver "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/gitserver"
 	codeintelhttpapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/httpapi"
-	codeintelResolvers "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers"
+	codeintelgql "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers/graphql"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/conf"
 	"github.com/sourcegraph/sourcegraph/internal/db/dbconn"
@@ -181,7 +181,7 @@ func initCodeIntel(enterpriseServices *enterprise.Services) {
 	bundleManagerClient := bundles.New(bundleManagerURL)
 	api := codeintelapi.NewObserved(codeintelapi.New(store, bundleManagerClient, codeintelgitserver.DefaultClient), observationContext)
 
-	enterpriseServices.CodeIntelResolver = codeintelResolvers.NewGraphQLResolver(store, bundleManagerClient, api)
+	enterpriseServices.CodeIntelResolver = codeintelgql.NewGraphQLResolver(store, bundleManagerClient, api)
 	enterpriseServices.NewCodeIntelUploadHandler = func(internal bool) http.Handler {
 		return codeintelhttpapi.NewUploadHandler(store, bundleManagerClient, internal)
 	}

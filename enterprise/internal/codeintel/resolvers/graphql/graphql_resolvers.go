@@ -9,6 +9,7 @@ import (
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
@@ -18,11 +19,11 @@ const DefaultDiagnosticsPageSize = 100
 var ErrIllegalLimit = errors.New("illegal limit")
 
 type gqlResolver struct {
-	resolver *resolver
+	resolver *resolvers.Resolver
 }
 
 func NewGraphQLResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) gql.CodeIntelResolver {
-	return &gqlResolver{resolver: NewResolver(store, bundleManagerClient, codeIntelAPI)}
+	return &gqlResolver{resolver: resolvers.NewResolver(store, bundleManagerClient, codeIntelAPI)}
 }
 
 func (r *gqlResolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFUploadResolver, error) {
@@ -128,10 +129,10 @@ func (r *gqlResolver) GitBlobLSIFData(ctx context.Context, args *gql.GitBlobLSIF
 //
 
 type gqlQueryResolver struct {
-	resolver *queryResolver
+	resolver *resolvers.QueryResolver
 }
 
-func NewGraphQLQueryResolver(resolver *queryResolver) gql.GitBlobLSIFDataResolver {
+func NewGraphQLQueryResolver(resolver *resolvers.QueryResolver) gql.GitBlobLSIFDataResolver {
 	return &gqlQueryResolver{resolver: resolver}
 }
 

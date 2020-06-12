@@ -12,33 +12,33 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
-type resolver struct {
+type Resolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
 }
 
-func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) *resolver {
-	return &resolver{store: store, bundleManagerClient: bundleManagerClient, codeIntelAPI: codeIntelAPI}
+func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) *Resolver {
+	return &Resolver{store: store, bundleManagerClient: bundleManagerClient, codeIntelAPI: codeIntelAPI}
 }
 
-func (r *resolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
+func (r *Resolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
 	return r.store.GetUploadByID(ctx, id)
 }
 
-func (r *resolver) GetIndexByID(ctx context.Context, id int) (store.Index, bool, error) {
+func (r *Resolver) GetIndexByID(ctx context.Context, id int) (store.Index, bool, error) {
 	return r.store.GetIndexByID(ctx, id)
 }
 
-func (r *resolver) UploadConnectionResolver(opts store.GetUploadsOptions) *uploadsResolver {
+func (r *Resolver) UploadConnectionResolver(opts store.GetUploadsOptions) *UploadsResolver {
 	return NewUploadsResolver(r.store, opts)
 }
 
-func (r *resolver) IndexConnectionResolver(opts store.GetIndexesOptions) *indexesResolver {
+func (r *Resolver) IndexConnectionResolver(opts store.GetIndexesOptions) *IndexesResolver {
 	return NewIndexesResolver(r.store, opts)
 }
 
-func (r *resolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
+func (r *Resolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
 	getTipCommit := func(repositoryID int) (string, error) {
 		tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
 		if err != nil {
@@ -51,12 +51,12 @@ func (r *resolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
 	return err
 }
 
-func (r *resolver) DeleteIndexByID(ctx context.Context, id int) error {
+func (r *Resolver) DeleteIndexByID(ctx context.Context, id int) error {
 	_, err := r.store.DeleteIndexByID(ctx, id)
 	return err
 }
 
-func (r *resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (*queryResolver, error) {
+func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (*QueryResolver, error) {
 	dumps, err := r.codeIntelAPI.FindClosestDumps(ctx, int(args.Repository.Type().ID), string(args.Commit), args.Path, args.ExactPath, args.ToolName)
 	if err != nil || len(dumps) == 0 {
 		return nil, err
@@ -73,67 +73,67 @@ func (r *resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataA
 	), nil
 }
 
-type uploadsResolver struct {
+type UploadsResolver struct {
 	store store.Store
 	opts  store.GetUploadsOptions
 	once  sync.Once
 	//
-	uploads    []store.Upload
-	totalCount int
-	nextOffset *int
+	Uploads    []store.Upload
+	TotalCount int
+	NextOffset *int
 	err        error
 }
 
-func NewUploadsResolver(store store.Store, opts store.GetUploadsOptions) *uploadsResolver {
-	return &uploadsResolver{store: store, opts: opts}
+func NewUploadsResolver(store store.Store, opts store.GetUploadsOptions) *UploadsResolver {
+	return &UploadsResolver{store: store, opts: opts}
 }
 
-func (r *uploadsResolver) Resolve(ctx context.Context) error {
+func (r *UploadsResolver) Resolve(ctx context.Context) error {
 	r.once.Do(func() { r.err = r.resolve(ctx) })
 	return r.err
 }
 
-func (r *uploadsResolver) resolve(ctx context.Context) error {
+func (r *UploadsResolver) resolve(ctx context.Context) error {
 	uploads, totalCount, err := r.store.GetUploads(ctx, r.opts)
 	if err != nil {
 		return err
 	}
 
-	r.uploads = uploads
-	r.nextOffset = nextOffset(r.opts.Offset, len(uploads), totalCount)
-	r.totalCount = totalCount
+	r.Uploads = uploads
+	r.NextOffset = nextOffset(r.opts.Offset, len(uploads), totalCount)
+	r.TotalCount = totalCount
 	return nil
 }
 
-type indexesResolver struct {
+type IndexesResolver struct {
 	store store.Store
 	opts  store.GetIndexesOptions
 	once  sync.Once
 	//
-	indexes    []store.Index
-	totalCount int
-	nextOffset *int
+	Indexes    []store.Index
+	TotalCount int
+	NextOffset *int
 	err        error
 }
 
-func NewIndexesResolver(store store.Store, opts store.GetIndexesOptions) *indexesResolver {
-	return &indexesResolver{store: store, opts: opts}
+func NewIndexesResolver(store store.Store, opts store.GetIndexesOptions) *IndexesResolver {
+	return &IndexesResolver{store: store, opts: opts}
 }
 
-func (r *indexesResolver) Resolve(ctx context.Context) error {
+func (r *IndexesResolver) Resolve(ctx context.Context) error {
 	r.once.Do(func() { r.err = r.resolve(ctx) })
 	return r.err
 }
 
-func (r *indexesResolver) resolve(ctx context.Context) error {
+func (r *IndexesResolver) resolve(ctx context.Context) error {
 	indexes, totalCount, err := r.store.GetIndexes(ctx, r.opts)
 	if err != nil {
 		return err
 	}
 
-	r.indexes = indexes
-	r.nextOffset = nextOffset(r.opts.Offset, len(indexes), totalCount)
-	r.totalCount = totalCount
+	r.Indexes = indexes
+	r.NextOffset = nextOffset(r.opts.Offset, len(indexes), totalCount)
+	r.TotalCount = totalCount
 	return nil
 }
 
