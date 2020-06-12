@@ -26,12 +26,16 @@ type locationConnectionResolver struct {
 var _ graphqlbackend.LocationConnectionResolver = &locationConnectionResolver{}
 
 func (r *locationConnectionResolver) Nodes(ctx context.Context) ([]graphqlbackend.LocationResolver, error) {
+	return resolveLocations(ctx, r.locations)
+}
+
+func resolveLocations(ctx context.Context, locations []AdjustedLocation) ([]graphqlbackend.LocationResolver, error) {
 	collectionResolver := &repositoryCollectionResolver{
 		commitCollectionResolvers: map[api.RepoID]*commitCollectionResolver{},
 	}
 
-	var l []graphqlbackend.LocationResolver
-	for _, location := range r.locations {
+	var resovledLocations []graphqlbackend.LocationResolver
+	for _, location := range locations {
 		treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.location.Dump.RepositoryID), location.adjustedCommit, location.location.Path)
 		if err != nil {
 			return nil, err
@@ -42,10 +46,10 @@ func (r *locationConnectionResolver) Nodes(ctx context.Context) ([]graphqlbacken
 		}
 
 		ar := location.adjustedRange
-		l = append(l, graphqlbackend.NewLocationResolver(treeResolver, &ar))
+		resovledLocations = append(resovledLocations, graphqlbackend.NewLocationResolver(treeResolver, &ar))
 	}
 
-	return l, nil
+	return resovledLocations, nil
 }
 
 func (r *locationConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {

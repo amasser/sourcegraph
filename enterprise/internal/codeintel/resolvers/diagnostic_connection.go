@@ -5,12 +5,10 @@ import (
 
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
 type diagnosticConnectionResolver struct {
-	repo        *types.Repo
 	totalCount  int
 	diagnostics []AdjustedDiagnostic
 }
@@ -18,20 +16,23 @@ type diagnosticConnectionResolver struct {
 var _ graphqlbackend.DiagnosticConnectionResolver = &diagnosticConnectionResolver{}
 
 func (r *diagnosticConnectionResolver) Nodes(ctx context.Context) ([]graphqlbackend.DiagnosticResolver, error) {
+	return resolveDiagnostics(r.diagnostics), nil
+}
+
+func resolveDiagnostics(diagnostics []AdjustedDiagnostic) []graphqlbackend.DiagnosticResolver {
 	collectionResolver := &repositoryCollectionResolver{
 		commitCollectionResolvers: map[api.RepoID]*commitCollectionResolver{},
 	}
 
 	var resolvers []graphqlbackend.DiagnosticResolver
-	for _, diagnostic := range r.diagnostics {
+	for _, diagnostic := range diagnostics {
 		resolvers = append(resolvers, &diagnosticResolver{
-			repo:               r.repo,
 			diagnostic:         diagnostic,
 			collectionResolver: collectionResolver,
 		})
 	}
 
-	return resolvers, nil
+	return resolvers
 }
 
 func (r *diagnosticConnectionResolver) TotalCount(ctx context.Context) (int32, error) {

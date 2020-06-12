@@ -46,13 +46,7 @@ func (r *lsifQueryResolver) Definitions(ctx context.Context, args *graphqlbacken
 		return nil, err
 	}
 
-	if len(locations) == 0 {
-		return &locationConnectionResolver{}, nil
-	}
-
-	return &locationConnectionResolver{
-		locations: locations,
-	}, nil
+	return &locationConnectionResolver{locations: locations}, nil
 }
 
 func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) ([]AdjustedLocation, error) {
@@ -99,10 +93,7 @@ func (r *lsifQueryResolver) References(ctx context.Context, args *graphqlbackend
 		return nil, err
 	}
 
-	return &locationConnectionResolver{
-		locations: locations,
-		endCursor: cursor,
-	}, nil
+	return &locationConnectionResolver{locations: locations, endCursor: cursor}, nil
 }
 
 func (r *realLsifQueryResolver) References(ctx context.Context, args *graphqlbackend.LSIFPagedQueryPositionArgs) ([]AdjustedLocation, string, error) {
@@ -201,11 +192,8 @@ func (r *realLsifQueryResolver) References(ctx context.Context, args *graphqlbac
 
 func (r *lsifQueryResolver) Hover(ctx context.Context, args *graphqlbackend.LSIFQueryPositionArgs) (graphqlbackend.HoverResolver, error) {
 	text, lspRange, exists, err := r.resolver.Hover(ctx, args)
-	if err != nil {
+	if err != nil || !exists {
 		return nil, err
-	}
-	if !exists {
-		return nil, nil
 	}
 
 	return &hoverResolver{text: text, lspRange: lspRange}, nil
@@ -257,7 +245,6 @@ func (r *lsifQueryResolver) Diagnostics(ctx context.Context, args *graphqlbacken
 	}
 
 	return &diagnosticConnectionResolver{
-		repo:        r.resolver.repo, // TODO - stash on the diagnostic instead?
 		totalCount:  totalCount,
 		diagnostics: diagnostics,
 	}, nil

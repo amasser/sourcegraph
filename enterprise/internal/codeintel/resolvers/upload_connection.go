@@ -34,13 +34,18 @@ func (r *lsifUploadConnectionResolver) Nodes(ctx context.Context) ([]graphqlback
 		return nil, err
 	}
 
-	var l []graphqlbackend.LSIFUploadResolver
-	for _, lsifUpload := range r.resolver.uploads {
-		l = append(l, &lsifUploadResolver{
+	return resolveUploads(r.resolver.uploads), nil
+}
+
+func resolveUploads(uploads []store.Upload) []graphqlbackend.LSIFUploadResolver {
+	var resolvers []graphqlbackend.LSIFUploadResolver
+	for _, lsifUpload := range uploads {
+		resolvers = append(resolvers, &lsifUploadResolver{
 			lsifUpload: lsifUpload,
 		})
 	}
-	return l, nil
+
+	return resolvers
 }
 
 func (r *lsifUploadConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {

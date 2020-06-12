@@ -33,13 +33,17 @@ func (r *lsifIndexConnectionResolver) Nodes(ctx context.Context) ([]graphqlbacke
 		return nil, err
 	}
 
-	var l []graphqlbackend.LSIFIndexResolver
-	for _, lsifIndex := range r.resolver.indexes {
-		l = append(l, &lsifIndexResolver{
+	return resolveIndexes(r.resolver.indexes), nil
+}
+
+func resolveIndexes(indexes []store.Index) []graphqlbackend.LSIFIndexResolver {
+	var resolvers []graphqlbackend.LSIFIndexResolver
+	for _, lsifIndex := range indexes {
+		resolvers = append(resolvers, &lsifIndexResolver{
 			lsifIndex: lsifIndex,
 		})
 	}
-	return l, nil
+	return resolvers
 }
 
 func (r *lsifIndexConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
