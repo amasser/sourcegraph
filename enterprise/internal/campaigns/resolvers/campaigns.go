@@ -297,6 +297,8 @@ func (r *campaignResolver) DiffStat(ctx context.Context) (*graphqlbackend.DiffSt
 
 	totalStat := &graphqlbackend.DiffStat{}
 	for _, cs := range changesets {
+		// Not being able to convert is OK; it just means there's a hidden
+		// changeset that we can't use the stats from.
 		if external, ok := cs.ToExternalChangeset(); ok && external != nil {
 			stat, err := external.DiffStat(ctx)
 			if err != nil {
@@ -305,8 +307,6 @@ func (r *campaignResolver) DiffStat(ctx context.Context) (*graphqlbackend.DiffSt
 			if stat != nil {
 				totalStat.AddDiffStat(stat)
 			}
-		} else {
-			return nil, errors.New("cannot convert ChangesetResolver to ExternalChangesetResolver")
 		}
 	}
 
