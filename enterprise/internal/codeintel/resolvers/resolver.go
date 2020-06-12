@@ -39,7 +39,7 @@ func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFU
 		return nil, err
 	}
 
-	return &lsifUploadResolver{lsifUpload: upload}, nil
+	return &uploadResolver{upload}, nil
 }
 
 func (r *Resolver) LSIFUploads(ctx context.Context, args *gql.LSIFUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
@@ -67,7 +67,7 @@ func (r *Resolver) LSIFUploadsByRepo(ctx context.Context, args *gql.LSIFReposito
 		opt.NextURL = &nextURL
 	}
 
-	return &lsifUploadConnectionResolver{resolver: r.resolver.UploadConnectionResolver(opt)}, nil
+	return &uploadConnectionResolver{resolver: r.resolver.UploadConnectionResolver(opt)}, nil
 }
 
 func (r *Resolver) DeleteLSIFUpload(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {
@@ -99,7 +99,7 @@ func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (gql.LSIFIn
 		return nil, err
 	}
 
-	return &lsifIndexResolver{lsifIndex: index}, nil
+	return &indexResolver{index}, nil
 }
 
 func (r *Resolver) LSIFIndexes(ctx context.Context, args *gql.LSIFIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
@@ -126,7 +126,7 @@ func (r *Resolver) LSIFIndexesByRepo(ctx context.Context, args *gql.LSIFReposito
 		opt.NextURL = &nextURL
 	}
 
-	return &lsifIndexConnectionResolver{resolver: r.resolver.IndexConnectionResolver(opt)}, nil
+	return &indexConnectionResolver{resolver: r.resolver.IndexConnectionResolver(opt)}, nil
 }
 
 func (r *Resolver) DeleteLSIFIndex(ctx context.Context, id graphql.ID) (*gql.EmptyResponse, error) {

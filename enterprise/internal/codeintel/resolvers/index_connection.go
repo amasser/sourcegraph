@@ -14,21 +14,13 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
-type lsifIndexConnectionResolver struct {
+type indexConnectionResolver struct {
 	resolver *realLsifIndexConnectionResolver
 }
 
-var _ gql.LSIFIndexConnectionResolver = &lsifIndexConnectionResolver{}
+var _ gql.LSIFIndexConnectionResolver = &indexConnectionResolver{}
 
-type LSIFIndexesListOptions struct {
-	RepositoryID graphql.ID
-	Query        *string
-	State        *string
-	Limit        *int32
-	NextURL      *string
-}
-
-func (r *lsifIndexConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFIndexResolver, error) {
+func (r *indexConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFIndexResolver, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
@@ -36,7 +28,7 @@ func (r *lsifIndexConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFInde
 	return resolveIndexes(r.resolver.indexes), nil
 }
 
-func (r *lsifIndexConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
+func (r *indexConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
@@ -48,7 +40,7 @@ func (r *lsifIndexConnectionResolver) TotalCount(ctx context.Context) (*int32, e
 	return &c, nil
 }
 
-func (r *lsifIndexConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
+func (r *indexConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
 	if err := r.resolver.compute(ctx); err != nil {
 		return nil, err
 	}
@@ -62,16 +54,22 @@ func (r *lsifIndexConnectionResolver) PageInfo(ctx context.Context) (*graphqluti
 
 func resolveIndexes(indexes []store.Index) []gql.LSIFIndexResolver {
 	var resolvers []gql.LSIFIndexResolver
-	for _, lsifIndex := range indexes {
-		resolvers = append(resolvers, &lsifIndexResolver{
-			lsifIndex: lsifIndex,
-		})
+	for _, index := range indexes {
+		resolvers = append(resolvers, &indexResolver{index})
 	}
 	return resolvers
 }
 
 //
 //
+
+type LSIFIndexesListOptions struct {
+	RepositoryID graphql.ID
+	Query        *string
+	State        *string
+	Limit        *int32
+	NextURL      *string
+}
 
 type realLsifIndexConnectionResolver struct {
 	store store.Store

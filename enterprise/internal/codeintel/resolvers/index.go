@@ -10,41 +10,41 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
-type lsifIndexResolver struct {
-	lsifIndex store.Index
+type indexResolver struct {
+	index store.Index
 }
 
-var _ gql.LSIFIndexResolver = &lsifIndexResolver{}
+var _ gql.LSIFIndexResolver = &indexResolver{}
 
-func (r *lsifIndexResolver) ID() graphql.ID      { return marshalLSIFIndexGQLID(int64(r.lsifIndex.ID)) }
-func (r *lsifIndexResolver) InputCommit() string { return r.lsifIndex.Commit }
-func (r *lsifIndexResolver) State() string       { return strings.ToUpper(r.lsifIndex.State) }
+func (r *indexResolver) ID() graphql.ID      { return marshalLSIFIndexGQLID(int64(r.index.ID)) }
+func (r *indexResolver) InputCommit() string { return r.index.Commit }
+func (r *indexResolver) State() string       { return strings.ToUpper(r.index.State) }
 
-func (r *lsifIndexResolver) PlaceInQueue() *int32 {
-	if r.lsifIndex.Rank == nil {
+func (r *indexResolver) PlaceInQueue() *int32 {
+	if r.index.Rank == nil {
 		return nil
 	}
 
-	v := int32(*r.lsifIndex.Rank)
+	v := int32(*r.index.Rank)
 	return &v
 }
 
-func (r *lsifIndexResolver) QueuedAt() gql.DateTime {
-	return gql.DateTime{Time: r.lsifIndex.QueuedAt}
+func (r *indexResolver) QueuedAt() gql.DateTime {
+	return gql.DateTime{Time: r.index.QueuedAt}
 }
 
-func (r *lsifIndexResolver) StartedAt() *gql.DateTime {
-	return gql.DateTimeOrNil(r.lsifIndex.StartedAt)
+func (r *indexResolver) StartedAt() *gql.DateTime {
+	return gql.DateTimeOrNil(r.index.StartedAt)
 }
 
-func (r *lsifIndexResolver) FinishedAt() *gql.DateTime {
-	return gql.DateTimeOrNil(r.lsifIndex.FinishedAt)
+func (r *indexResolver) FinishedAt() *gql.DateTime {
+	return gql.DateTimeOrNil(r.index.FinishedAt)
 }
 
-func (r *lsifIndexResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
-	return resolvePath(ctx, api.RepoID(r.lsifIndex.RepositoryID), r.lsifIndex.Commit, "")
+func (r *indexResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
+	return resolvePath(ctx, api.RepoID(r.index.RepositoryID), r.index.Commit, "")
 }
 
-func (r *lsifIndexResolver) Failure() *string {
-	return r.lsifIndex.FailureMessage
+func (r *indexResolver) Failure() *string {
+	return r.index.FailureMessage
 }

@@ -14,22 +14,13 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
-type lsifUploadConnectionResolver struct {
+type uploadConnectionResolver struct {
 	resolver *realLsifUploadConnectionResolver
 }
 
-var _ gql.LSIFUploadConnectionResolver = &lsifUploadConnectionResolver{}
+var _ gql.LSIFUploadConnectionResolver = &uploadConnectionResolver{}
 
-type LSIFUploadsListOptions struct {
-	RepositoryID    graphql.ID
-	Query           *string
-	State           *string
-	IsLatestForRepo *bool
-	Limit           *int32
-	NextURL         *string
-}
-
-func (r *lsifUploadConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFUploadResolver, error) {
+func (r *uploadConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFUploadResolver, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
@@ -37,7 +28,7 @@ func (r *lsifUploadConnectionResolver) Nodes(ctx context.Context) ([]gql.LSIFUpl
 	return resolveUploads(r.resolver.uploads), nil
 }
 
-func (r *lsifUploadConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
+func (r *uploadConnectionResolver) TotalCount(ctx context.Context) (*int32, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
@@ -49,7 +40,7 @@ func (r *lsifUploadConnectionResolver) TotalCount(ctx context.Context) (*int32, 
 	return &c, nil
 }
 
-func (r *lsifUploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
+func (r *uploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
@@ -63,10 +54,8 @@ func (r *lsifUploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlut
 
 func resolveUploads(uploads []store.Upload) []gql.LSIFUploadResolver {
 	var resolvers []gql.LSIFUploadResolver
-	for _, lsifUpload := range uploads {
-		resolvers = append(resolvers, &lsifUploadResolver{
-			lsifUpload: lsifUpload,
-		})
+	for _, upload := range uploads {
+		resolvers = append(resolvers, &uploadResolver{upload})
 	}
 
 	return resolvers
@@ -74,6 +63,15 @@ func resolveUploads(uploads []store.Upload) []gql.LSIFUploadResolver {
 
 //
 //
+
+type LSIFUploadsListOptions struct {
+	RepositoryID    graphql.ID
+	Query           *string
+	State           *string
+	IsLatestForRepo *bool
+	Limit           *int32
+	NextURL         *string
+}
 
 type realLsifUploadConnectionResolver struct {
 	store store.Store

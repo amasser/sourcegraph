@@ -10,44 +10,44 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
-type lsifUploadResolver struct {
-	lsifUpload store.Upload
+type uploadResolver struct {
+	upload store.Upload
 }
 
-var _ gql.LSIFUploadResolver = &lsifUploadResolver{}
+var _ gql.LSIFUploadResolver = &uploadResolver{}
 
-func (r *lsifUploadResolver) ID() graphql.ID        { return marshalLSIFUploadGQLID(int64(r.lsifUpload.ID)) }
-func (r *lsifUploadResolver) InputCommit() string   { return r.lsifUpload.Commit }
-func (r *lsifUploadResolver) InputRoot() string     { return r.lsifUpload.Root }
-func (r *lsifUploadResolver) InputIndexer() string  { return r.lsifUpload.Indexer }
-func (r *lsifUploadResolver) State() string         { return strings.ToUpper(r.lsifUpload.State) }
-func (r *lsifUploadResolver) IsLatestForRepo() bool { return r.lsifUpload.VisibleAtTip }
+func (r *uploadResolver) ID() graphql.ID        { return marshalLSIFUploadGQLID(int64(r.upload.ID)) }
+func (r *uploadResolver) InputCommit() string   { return r.upload.Commit }
+func (r *uploadResolver) InputRoot() string     { return r.upload.Root }
+func (r *uploadResolver) InputIndexer() string  { return r.upload.Indexer }
+func (r *uploadResolver) State() string         { return strings.ToUpper(r.upload.State) }
+func (r *uploadResolver) IsLatestForRepo() bool { return r.upload.VisibleAtTip }
 
-func (r *lsifUploadResolver) PlaceInQueue() *int32 {
-	if r.lsifUpload.Rank == nil {
+func (r *uploadResolver) PlaceInQueue() *int32 {
+	if r.upload.Rank == nil {
 		return nil
 	}
 
-	v := int32(*r.lsifUpload.Rank)
+	v := int32(*r.upload.Rank)
 	return &v
 }
 
-func (r *lsifUploadResolver) UploadedAt() gql.DateTime {
-	return gql.DateTime{Time: r.lsifUpload.UploadedAt}
+func (r *uploadResolver) UploadedAt() gql.DateTime {
+	return gql.DateTime{Time: r.upload.UploadedAt}
 }
 
-func (r *lsifUploadResolver) StartedAt() *gql.DateTime {
-	return gql.DateTimeOrNil(r.lsifUpload.StartedAt)
+func (r *uploadResolver) StartedAt() *gql.DateTime {
+	return gql.DateTimeOrNil(r.upload.StartedAt)
 }
 
-func (r *lsifUploadResolver) FinishedAt() *gql.DateTime {
-	return gql.DateTimeOrNil(r.lsifUpload.FinishedAt)
+func (r *uploadResolver) FinishedAt() *gql.DateTime {
+	return gql.DateTimeOrNil(r.upload.FinishedAt)
 }
 
-func (r *lsifUploadResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
-	return resolvePath(ctx, api.RepoID(r.lsifUpload.RepositoryID), r.lsifUpload.Commit, r.lsifUpload.Root)
+func (r *uploadResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
+	return resolvePath(ctx, api.RepoID(r.upload.RepositoryID), r.upload.Commit, r.upload.Root)
 }
 
-func (r *lsifUploadResolver) Failure() *string {
-	return r.lsifUpload.FailureMessage
+func (r *uploadResolver) Failure() *string {
+	return r.upload.FailureMessage
 }
