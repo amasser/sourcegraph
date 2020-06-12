@@ -59,7 +59,6 @@ func NewQueryResolver(
 
 func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
 	for _, upload := range r.uploads {
-		// TODO(efritz) - we should also detect renames/copies on position adjustment
 		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, int32(line), int32(character))
 		if err != nil {
 			return nil, err
@@ -261,6 +260,10 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 	return adjustedDiagnostics, totalCount, nil
 }
 
+//
+// TODO : Refactor this
+//
+
 // adjustPosition adjusts the position denoted by `line` and `character` in the requested commit into an
 // LSP position in the upload commit. This method returns nil if no equivalent position is found.
 func (r *QueryResolver) adjustPosition(ctx context.Context, uploadCommit string, line, character int32) (lsp.Position, bool, error) {
@@ -344,12 +347,4 @@ func makeCursor(cursors map[int]string) (string, error) {
 		return "", err
 	}
 	return string(encoded), nil
-}
-
-func convertRange(r bundles.Range) lsp.Range {
-	return lsp.Range{Start: convertPosition(r.Start.Line, r.Start.Character), End: convertPosition(r.End.Line, r.End.Character)}
-}
-
-func convertPosition(line, character int) lsp.Position {
-	return lsp.Position{Line: line, Character: character}
 }

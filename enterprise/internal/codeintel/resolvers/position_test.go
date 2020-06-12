@@ -6,6 +6,8 @@ import (
 	"github.com/sourcegraph/go-lsp"
 )
 
+// TODO - update testing standards
+
 // hugoDiff is a diff from github.com/gohugoio/hugo generated via the following command.
 // git diff 8947c3fa0beec021e14b3f8040857335e1ecd473 3e9db2ad951dbb1000cd0f8f25e4a95445046679 -- resources/image.go
 const hugoDiff = `
