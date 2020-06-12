@@ -2,8 +2,6 @@ package resolvers
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
 	"sync"
 
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
@@ -29,12 +27,8 @@ func (r *indexConnectionResolver) TotalCount(ctx context.Context) (*int32, error
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
-	if r.resolver.totalCount == nil {
-		return nil, nil
-	}
 
-	c := int32(*r.resolver.totalCount)
-	return &c, nil
+	return int32Ptr(&r.resolver.totalCount), nil
 }
 
 func (r *indexConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
@@ -42,18 +36,18 @@ func (r *indexConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.Pa
 		return nil, err
 	}
 
-	if r.resolver.nextURL != "" {
-		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(r.resolver.nextURL))), nil
-	}
-
-	return graphqlutil.HasNextPage(false), nil
+	return encodeIntCursor(r.resolver.nextOffset), nil
 }
+
+//
+//
 
 func resolveIndexes(indexes []store.Index) []gql.LSIFIndexResolver {
 	var resolvers []gql.LSIFIndexResolver
 	for _, index := range indexes {
 		resolvers = append(resolvers, &indexResolver{index})
 	}
+
 	return resolvers
 }
 
@@ -66,8 +60,8 @@ type realLsifIndexConnectionResolver struct {
 	once  sync.Once
 	//
 	indexes    []store.Index
-	totalCount *int
-	nextURL    string
+	totalCount int
+	nextOffset *int
 	err        error
 }
 
@@ -82,13 +76,14 @@ func (r *realLsifIndexConnectionResolver) compute(ctx context.Context) error {
 		return err
 	}
 
-	cursor := ""
+	var nextOffset *int
 	if r.opts.Offset+len(indexes) < totalCount {
-		cursor = fmt.Sprintf("%d", r.opts.Offset+len(indexes))
+		v := r.opts.Offset + len(indexes)
+		nextOffset = &v
 	}
 
 	r.indexes = indexes
-	r.nextURL = cursor
-	r.totalCount = &totalCount
+	r.nextOffset = nextOffset
+	r.totalCount = totalCount
 	return nil
 }

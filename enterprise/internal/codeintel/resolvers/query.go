@@ -79,6 +79,7 @@ type realLsifQueryResolver struct {
 	uploads             []store.Dump
 }
 
+// TODO - parse args prior to this
 func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryPositionArgs) ([]AdjustedLocation, error) {
 	for _, upload := range r.uploads {
 		// TODO(efritz) - we should also detect renames/copies on position adjustment
@@ -104,7 +105,8 @@ func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQ
 				}
 
 				adjustedLocations = append(adjustedLocations, AdjustedLocation{
-					location:       l,
+					dump:           l.Dump,
+					path:           l.Path,
 					adjustedCommit: adjustedCommit,
 					adjustedRange:  adjustedRange,
 				})
@@ -117,12 +119,13 @@ func (r *realLsifQueryResolver) Definitions(ctx context.Context, args *gql.LSIFQ
 	return nil, nil
 }
 
+// TODO - parse args prior to this
 func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) ([]AdjustedLocation, string, error) {
 	// Decode a map of upload ids to the next url that serves
 	// the new page of results. This may not include an entry
 	// for every upload if their result sets have already been
 	// exhausted.
-	nextURLs, err := readCursor(args.After)
+	cursors, err := readCursor(args.After)
 	if err != nil {
 		return nil, "", err
 	}
@@ -152,9 +155,9 @@ func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPa
 		}
 
 		rawCursor := ""
-		if nextURL, ok := nextURLs[upload.ID]; ok {
-			rawCursor = nextURL
-		} else if len(nextURLs) != 0 {
+		if cursor, ok := cursors[upload.ID]; ok {
+			rawCursor = cursor
+		} else if len(cursors) != 0 {
 			// Result set is exhausted or newer than the first page
 			// of results. Skip anything from this upload as it will
 			// have duplicate results, or it will be out of order.
@@ -202,7 +205,8 @@ func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPa
 		}
 
 		adjustedLocations = append(adjustedLocations, AdjustedLocation{
-			location:       l,
+			dump:           l.Dump,
+			path:           l.Path,
 			adjustedCommit: adjustedCommit,
 			adjustedRange:  adjustedRange,
 		})
@@ -211,6 +215,7 @@ func (r *realLsifQueryResolver) References(ctx context.Context, args *gql.LSIFPa
 	return adjustedLocations, endCursor, nil
 }
 
+// TODO - parse args prior to this
 func (r *realLsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionArgs) (string, lsp.Range, bool, error) {
 	for _, upload := range r.uploads {
 		adjustedPosition, ok, err := r.adjustPosition(ctx, upload.Commit, args.Line, args.Character)
@@ -250,6 +255,7 @@ func (r *realLsifQueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPo
 	return "", lsp.Range{}, false, nil
 }
 
+// TODO - parse args prior to this
 func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFDiagnosticsArgs) ([]AdjustedDiagnostic, int, error) {
 	limit := DefaultDiagnosticsPageSize
 	if args.First != nil {
@@ -289,7 +295,8 @@ func (r *realLsifQueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFD
 		}
 
 		adjustedDiagnostics = append(adjustedDiagnostics, AdjustedDiagnostic{
-			diagnostic:     d,
+			Diagnostic:     d.Diagnostic,
+			dump:           d.Dump,
 			adjustedCommit: adjustedCommit,
 			adjustedRange:  adjustedRange,
 		})

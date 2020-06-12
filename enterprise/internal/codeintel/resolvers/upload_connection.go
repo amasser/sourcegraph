@@ -2,8 +2,6 @@ package resolvers
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
 	"sync"
 
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
@@ -29,12 +27,8 @@ func (r *uploadConnectionResolver) TotalCount(ctx context.Context) (*int32, erro
 	if err := r.resolver.Compute(ctx); err != nil {
 		return nil, err
 	}
-	if r.resolver.totalCount == nil {
-		return nil, nil
-	}
 
-	c := int32(*r.resolver.totalCount)
-	return &c, nil
+	return int32Ptr(&r.resolver.totalCount), nil
 }
 
 func (r *uploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
@@ -42,12 +36,11 @@ func (r *uploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.P
 		return nil, err
 	}
 
-	if r.resolver.nextURL != "" {
-		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(r.resolver.nextURL))), nil
-	}
-
-	return graphqlutil.HasNextPage(false), nil
+	return encodeIntCursor(r.resolver.nextOffset), nil
 }
+
+//
+//
 
 func resolveUploads(uploads []store.Upload) []gql.LSIFUploadResolver {
 	var resolvers []gql.LSIFUploadResolver
@@ -67,8 +60,8 @@ type realLsifUploadConnectionResolver struct {
 	once  sync.Once
 	//
 	uploads    []store.Upload
-	totalCount *int
-	nextURL    string
+	totalCount int
+	nextOffset *int
 	err        error
 }
 
@@ -83,13 +76,14 @@ func (r *realLsifUploadConnectionResolver) compute(ctx context.Context) error {
 		return err
 	}
 
-	cursor := ""
+	var nextOffset *int
 	if r.opts.Offset+len(uploads) < totalCount {
-		cursor = fmt.Sprintf("%d", r.opts.Offset+len(uploads))
+		val := r.opts.Offset + len(uploads)
+		nextOffset = &val
 	}
 
 	r.uploads = uploads
-	r.nextURL = cursor
-	r.totalCount = &totalCount
+	r.nextOffset = nextOffset
+	r.totalCount = totalCount
 	return nil
 }

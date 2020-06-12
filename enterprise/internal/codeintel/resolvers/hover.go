@@ -12,10 +12,5 @@ type hoverResolver struct {
 
 var _ gql.HoverResolver = &hoverResolver{}
 
-func (r *hoverResolver) Markdown() gql.MarkdownResolver {
-	return gql.NewMarkdownResolver(r.text)
-}
-
-func (r *hoverResolver) Range() gql.RangeResolver {
-	return gql.NewRangeResolver(r.lspRange)
-}
+func (r *hoverResolver) Markdown() gql.MarkdownResolver { return gql.NewMarkdownResolver(r.text) }
+func (r *hoverResolver) Range() gql.RangeResolver       { return gql.NewRangeResolver(r.lspRange) }

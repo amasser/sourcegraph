@@ -27,6 +27,9 @@ func (r *diagnosticConnectionResolver) PageInfo(ctx context.Context) (*graphqlut
 	return graphqlutil.HasNextPage(len(r.diagnostics) < r.totalCount), nil
 }
 
+//
+//
+
 func resolveDiagnostics(diagnostics []AdjustedDiagnostic) []gql.DiagnosticResolver {
 	collectionResolver := &repositoryCollectionResolver{
 		commitCollectionResolvers: map[api.RepoID]*commitCollectionResolver{},

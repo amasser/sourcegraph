@@ -3,6 +3,7 @@ package resolvers
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
+	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
 	bundles "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/client"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/gitserver"
@@ -198,6 +200,14 @@ func decodeIntCursor(val *string) (int, error) {
 
 	v, _ := strconv.Atoi(string(decoded))
 	return v, nil
+}
+
+func encodeIntCursor(val *int) *graphqlutil.PageInfo {
+	if val != nil {
+		return graphqlutil.NextPageCursor(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%d", val))))
+	}
+
+	return graphqlutil.HasNextPage(false)
 }
 
 func strDefault(val *string, defaultValue string) string {

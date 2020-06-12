@@ -6,12 +6,13 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
-	codeintelapi "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/api"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
 type AdjustedLocation struct {
-	location       codeintelapi.ResolvedLocation
+	dump           store.Dump
+	path           string
 	adjustedCommit string
 	adjustedRange  lsp.Range
 }
@@ -34,6 +35,9 @@ func (r *locationConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil
 	return graphqlutil.HasNextPage(false), nil
 }
 
+//
+//
+
 func resolveLocations(ctx context.Context, locations []AdjustedLocation) ([]gql.LocationResolver, error) {
 	collectionResolver := &repositoryCollectionResolver{
 		commitCollectionResolvers: map[api.RepoID]*commitCollectionResolver{},
@@ -41,7 +45,7 @@ func resolveLocations(ctx context.Context, locations []AdjustedLocation) ([]gql.
 
 	var resovledLocations []gql.LocationResolver
 	for _, location := range locations {
-		treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.location.Dump.RepositoryID), location.adjustedCommit, location.location.Path)
+		treeResolver, err := collectionResolver.resolve(ctx, api.RepoID(location.dump.RepositoryID), location.adjustedCommit, location.path)
 		if err != nil {
 			return nil, err
 		}
