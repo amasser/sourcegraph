@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	graphql "github.com/graph-gophers/graphql-go"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
@@ -60,14 +59,6 @@ func resolveIndexes(indexes []store.Index) []gql.LSIFIndexResolver {
 
 //
 //
-
-type LSIFIndexesListOptions struct {
-	RepositoryID graphql.ID
-	Query        *string
-	State        *string
-	Limit        *int32
-	NextURL      *string
-}
 
 type realLsifIndexConnectionResolver struct {
 	store store.Store

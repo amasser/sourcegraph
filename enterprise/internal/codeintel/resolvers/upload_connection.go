@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	graphql "github.com/graph-gophers/graphql-go"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
@@ -61,15 +60,6 @@ func resolveUploads(uploads []store.Upload) []gql.LSIFUploadResolver {
 
 //
 //
-
-type LSIFUploadsListOptions struct {
-	RepositoryID    graphql.ID
-	Query           *string
-	State           *string
-	IsLatestForRepo *bool
-	Limit           *int32
-	NextURL         *string
-}
 
 type realLsifUploadConnectionResolver struct {
 	store store.Store
