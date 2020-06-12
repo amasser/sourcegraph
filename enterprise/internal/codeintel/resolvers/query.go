@@ -60,7 +60,7 @@ func NewQueryResolver(
 
 func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
 	for i := range r.uploads {
-		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, line, character)
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character})
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 			continue
 		}
 
-		locations, err := r.codeIntelAPI.Definitions(ctx, adjustedPath, adjustedLine, adjustedCharacter, r.uploads[i].ID)
+		locations, err := r.codeIntelAPI.Definitions(ctx, adjustedPath, adjustedPosition.Line, adjustedPosition.Character, r.uploads[i].ID)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,7 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 		adjustedLocations := make([]AdjustedLocation, 0, len(locations))
 		for i := range locations {
 			adjustedCommit := locations[i].Dump.Commit
-			adjustedRange := convertRange(locations[i].Range)
+			adjustedRange := locations[i].Range
 			if locations[i].Dump.RepositoryID == r.repositoryID {
 				var err error
 				adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, locations[i].Dump.Commit, locations[i].Path, locations[i].Range)
@@ -92,7 +92,7 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 				Dump:           locations[i].Dump,
 				Path:           locations[i].Path,
 				AdjustedCommit: adjustedCommit,
-				AdjustedRange:  adjustedRange,
+				AdjustedRange:  convertRange(adjustedRange),
 			})
 		}
 
@@ -119,7 +119,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 	var allLocations []codeintelapi.ResolvedLocation
 	for i := range r.uploads {
-		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, line, character)
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character})
 		if err != nil {
 			return nil, "", err
 		}
@@ -137,7 +137,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 			continue
 		}
 
-		cursor, err := codeintelapi.DecodeOrCreateCursor(adjustedPath, adjustedLine, adjustedCharacter, r.uploads[i].ID, rawCursor, r.store, r.bundleManagerClient)
+		cursor, err := codeintelapi.DecodeOrCreateCursor(adjustedPath, adjustedPosition.Line, adjustedPosition.Character, r.uploads[i].ID, rawCursor, r.store, r.bundleManagerClient)
 		if err != nil {
 			return nil, "", err
 		}
@@ -173,7 +173,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 	adjustedLocations := make([]AdjustedLocation, 0, len(allLocations))
 	for i := range allLocations {
 		adjustedCommit := allLocations[i].Dump.Commit
-		adjustedRange := convertRange(allLocations[i].Range)
+		adjustedRange := allLocations[i].Range
 		if allLocations[i].Dump.RepositoryID == r.repositoryID {
 			var err error
 			adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range)
@@ -186,7 +186,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 			Dump:           allLocations[i].Dump,
 			Path:           allLocations[i].Path,
 			AdjustedCommit: adjustedCommit,
-			AdjustedRange:  adjustedRange,
+			AdjustedRange:  convertRange(adjustedRange),
 		})
 	}
 
@@ -195,7 +195,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
 	for i := range r.uploads {
-		adjustedPath, adjustedLine, adjustedCharacter, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, line, character)
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character})
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -203,18 +203,15 @@ func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string,
 			continue
 		}
 
-		text, rn, exists, err := r.codeIntelAPI.Hover(ctx, adjustedPath, adjustedLine, adjustedCharacter, r.uploads[i].ID)
+		text, rn, exists, err := r.codeIntelAPI.Hover(ctx, adjustedPath, adjustedPosition.Line, adjustedPosition.Character, r.uploads[i].ID)
 		if err != nil || !exists {
 			return "", lsp.Range{}, false, err
 		}
-
-		lspRange := convertRange(rn)
-
 		if text == "" {
 			continue
 		}
 
-		adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, r.path, lspRange)
+		adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, r.path, rn)
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -227,7 +224,7 @@ func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string,
 			continue
 		}
 
-		return text, adjustedRange, true, nil
+		return text, convertRange(adjustedRange), true, nil
 	}
 
 	return "", lsp.Range{}, false, nil
@@ -267,7 +264,7 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 		}
 
 		adjustedCommit := allDiagnostics[i].Dump.Commit
-		adjustedRange := convertRange(clientRange)
+		adjustedRange := clientRange
 		if allDiagnostics[i].Dump.RepositoryID == r.repositoryID {
 			var err error
 			adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange)
@@ -280,7 +277,7 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 			Diagnostic:     allDiagnostics[i].Diagnostic,
 			Dump:           allDiagnostics[i].Dump,
 			AdjustedCommit: adjustedCommit,
-			AdjustedRange:  adjustedRange,
+			AdjustedRange:  convertRange(adjustedRange),
 		})
 	}
 

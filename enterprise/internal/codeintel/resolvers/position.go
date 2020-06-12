@@ -17,11 +17,11 @@ import (
 type PositionAdjuster interface {
 	// In
 	AdjustPath(ctx context.Context, commit, path string) (string, bool, error)
-	AdjustPosition(ctx context.Context, commit, path string, requestedLine, requestedCharacter int) (string, int, int, bool, error)
+	AdjustPosition(ctx context.Context, commit, path string, px bundles.Position) (string, bundles.Position, bool, error)
 
 	// Out
-	AdjustRange(ctx context.Context, commit, path string, r lsp.Range) (lsp.Range, bool, error)
-	AdjustLocation(ctx context.Context, commit, path string, r bundles.Range) (string, lsp.Range, error)
+	AdjustRange(ctx context.Context, commit, path string, rx bundles.Range) (bundles.Range, bool, error)
+	AdjustLocation(ctx context.Context, commit, path string, rx bundles.Range) (string, bundles.Range, error)
 }
 
 type realPositionAdjuster struct {
@@ -40,43 +40,51 @@ func (p *realPositionAdjuster) AdjustPath(ctx context.Context, commit, path stri
 	return path, true, nil
 }
 
-func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path string, requestedLine, requestedCharacter int) (string, int, int, bool, error) {
+func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path string, px bundles.Position) (string, bundles.Position, bool, error) {
 	adjuster, err := newPositionAdjuster(ctx, p.repo, p.requestedCommit, commit, path)
 	if err != nil {
-		return "", 0, 0, false, err
+		return "", bundles.Position{}, false, err
 	}
 
-	adjusted, ok := adjuster.adjustPosition(lsp.Position{Line: requestedLine, Character: requestedCharacter})
-	return path, adjusted.Line, adjusted.Character, ok, nil
+	adjusted, ok := adjuster.adjustPosition(lsp.Position{Line: px.Line, Character: px.Character})
+	return path, bundles.Position{Line: adjusted.Line, Character: adjusted.Character}, ok, nil
 }
 
-func (p *realPositionAdjuster) AdjustLocation(ctx context.Context, commit, path string, rx bundles.Range) (string, lsp.Range, error) {
+func (p *realPositionAdjuster) AdjustLocation(ctx context.Context, commit, path string, rx bundles.Range) (string, bundles.Range, error) {
 	adjuster, err := newPositionAdjuster(ctx, p.repo, commit, p.requestedCommit, path)
 	if err != nil {
-		return "", lsp.Range{}, err
+		return "", bundles.Range{}, err
 	}
 
-	if adjustedRange, ok := adjuster.adjustRange(convertRange(rx)); ok {
-		return p.requestedCommit, adjustedRange, nil
+	if adjusted, ok := adjuster.adjustRange(convertRange(rx)); ok {
+		return p.requestedCommit, bundles.Range{Start: bundles.Position{Line: adjusted.Start.Line, Character: adjusted.Start.Character}, End: bundles.Position{Line: adjusted.End.Line, Character: adjusted.End.Character}}, nil
 	}
 
 	// Couldn't adjust range, return original result which is precise but
 	// jump the user to another into another commit context on navigation.
-	return commit, convertRange(rx), nil
+	return commit, rx, nil
 }
 
-func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path string, rx lsp.Range) (lsp.Range, bool, error) {
+func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path string, rx bundles.Range) (bundles.Range, bool, error) {
 	adjuster, err := newPositionAdjuster(ctx, p.repo, commit, p.requestedCommit, path)
 	if err != nil {
-		return lsp.Range{}, false, err
+		return bundles.Range{}, false, err
 	}
 
-	adjusted, ok := adjuster.adjustRange(rx)
-	return adjusted, ok, nil
+	adjusted, ok := adjuster.adjustRange(convertRange(rx))
+	return bundles.Range{Start: bundles.Position{Line: adjusted.Start.Line, Character: adjusted.Start.Character}, End: bundles.Position{Line: adjusted.End.Line, Character: adjusted.End.Character}}, ok, nil
 }
 
 //
+//
+//
+//
+//
 // TODO
+//
+//
+//
+//
 //
 
 type positionAdjuster struct {
