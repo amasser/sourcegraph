@@ -18,7 +18,9 @@ type MockedGitHubChangesetSyncState struct {
 
 // GitHubChangesetSync sets up mocks such that invoking LoadChangesets() on one
 // or more GitHub changesets will always return succeed, and return the same
-// diff.
+// diff (+1, ~1, -3).
+//
+// UnmockGitHubChangesetSync() must called to clean up, usually via defer.
 func GitHubChangesetSync(repo *protocol.RepoInfo) *MockedGitHubChangesetSyncState {
 	state := &MockedGitHubChangesetSyncState{
 		execReader:     git.Mocks.ExecReader,
@@ -44,11 +46,14 @@ func GitHubChangesetSync(repo *protocol.RepoInfo) *MockedGitHubChangesetSyncStat
 	return state
 }
 
+// UnmockGitHubChangesetSync resets the mocks set up by GitHubChangesetSync.
 func UnmockGitHubChangesetSync(state *MockedGitHubChangesetSyncState) {
 	git.Mocks.ExecReader = state.execReader
 	repoupdater.MockRepoLookup = state.mockRepoLookup
 }
 
+// testDiff provides a diff that will resolve to 1 added line, 1 changed line,
+// and 3 deleted lines.
 const testDiff = `
 diff --git a/test.py b/test.py
 index 884601b..c4886d5 100644
