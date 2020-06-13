@@ -11,12 +11,14 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
+// TODO - document
 type Resolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
 }
 
+// TODO - document
 func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) *Resolver {
 	return &Resolver{
 		store:               store,

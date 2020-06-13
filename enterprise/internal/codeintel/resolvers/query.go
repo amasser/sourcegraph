@@ -11,6 +11,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
+// TODO - document, test
 type AdjustedLocation struct {
 	Dump           store.Dump
 	Path           string
@@ -18,6 +19,7 @@ type AdjustedLocation struct {
 	AdjustedRange  lsp.Range
 }
 
+// TODO - document, test
 type AdjustedDiagnostic struct {
 	bundles.Diagnostic
 	Dump           store.Dump
@@ -25,6 +27,7 @@ type AdjustedDiagnostic struct {
 	AdjustedRange  lsp.Range
 }
 
+// TODO - document, test
 type QueryResolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
@@ -36,6 +39,7 @@ type QueryResolver struct {
 	uploads             []store.Dump
 }
 
+// TODO - document, test
 func NewQueryResolver(
 	store store.Store,
 	bundleManagerClient bundles.BundleManagerClient,
@@ -58,6 +62,7 @@ func NewQueryResolver(
 	}
 }
 
+// TODO - document, test
 func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
 	position := bundles.Position{Line: line, Character: character}
 
@@ -84,6 +89,7 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 	return nil, nil
 }
 
+// TODO - document, test
 func (r *QueryResolver) References(ctx context.Context, line, character, limit int, rawCursor string) ([]AdjustedLocation, string, error) {
 	position := bundles.Position{Line: line, Character: character}
 
@@ -150,6 +156,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 	return adjustedLocations, endCursor, nil
 }
 
+// TODO - document, test
 func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
 	position := bundles.Position{Line: line, Character: character}
 
@@ -187,6 +194,7 @@ func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string,
 	return "", lsp.Range{}, false, nil
 }
 
+// TODO - document, test
 func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedDiagnostic, int, error) {
 	totalCount := 0
 	var allDiagnostics []codeintelapi.ResolvedDiagnostic
@@ -236,6 +244,7 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 	return adjustedDiagnostics, totalCount, nil
 }
 
+// TODO - document
 func (r *QueryResolver) adjustLocations(ctx context.Context, locations []codeintelapi.ResolvedLocation) ([]AdjustedLocation, error) {
 	adjustedLocations := make([]AdjustedLocation, 0, len(locations))
 	for i := range locations {
@@ -255,6 +264,7 @@ func (r *QueryResolver) adjustLocations(ctx context.Context, locations []codeint
 	return adjustedLocations, nil
 }
 
+// TODO - document
 func (r *QueryResolver) adjustRange(ctx context.Context, repositoryID int, commit, path string, rx bundles.Range) (string, bundles.Range, error) {
 	if repositoryID == r.repositoryID {
 		if _, adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, commit, path, rx, true); err != nil {
@@ -267,8 +277,7 @@ func (r *QueryResolver) adjustRange(ctx context.Context, repositoryID int, commi
 	return commit, rx, nil
 }
 
-// readCursor decodes a cursor into a map from upload ids to URLs that
-// serves the next page of results.
+// readCursor decodes a cursor into a map from upload ids to URLs that serves the next page of results.
 func readCursor(after string) (map[int]string, error) {
 	if after == "" {
 		return nil, nil
@@ -281,9 +290,8 @@ func readCursor(after string) (map[int]string, error) {
 	return cursors, nil
 }
 
-// makeCursor encodes a map from upload ids to URLs that serves the next
-// page of results into a single string that can be sent back for use in
-// cursor pagination.
+// makeCursor encodes a map from upload ids to URLs that serves the next page of results into a single string
+// that can be sent back for use in cursor pagination.
 func makeCursor(cursors map[int]string) (string, error) {
 	if len(cursors) == 0 {
 		return "", nil

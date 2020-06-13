@@ -13,31 +13,38 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/vcs/git"
 )
 
-// TODO - document, test
-
+// TODO - document
 type PositionAdjuster interface {
+	// TODO - document
 	AdjustPath(ctx context.Context, commit, path string, reverse bool) (string, bool, error)
+
+	// TODO - document
 	AdjustPosition(ctx context.Context, commit, path string, px bundles.Position, reverse bool) (string, bundles.Position, bool, error)
+
+	// TODO - document
 	AdjustRange(ctx context.Context, commit, path string, rx bundles.Range, reverse bool) (string, bundles.Range, bool, error)
 }
 
-type realPositionAdjuster struct {
+type positionAdjuster struct {
 	repo            *types.Repo
 	requestedCommit string
 }
 
+// TODO - document
 func NewPositionAdjuster(repo *types.Repo, requestedCommit string) PositionAdjuster {
-	return &realPositionAdjuster{
+	return &positionAdjuster{
 		repo:            repo,
 		requestedCommit: requestedCommit,
 	}
 }
 
-func (p *realPositionAdjuster) AdjustPath(ctx context.Context, commit, path string, reverse bool) (string, bool, error) {
+// TODO - document
+func (p *positionAdjuster) AdjustPath(ctx context.Context, commit, path string, reverse bool) (string, bool, error) {
 	return path, true, nil
 }
 
-func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path string, px bundles.Position, reverse bool) (string, bundles.Position, bool, error) {
+// TODO - document
+func (p *positionAdjuster) AdjustPosition(ctx context.Context, commit, path string, px bundles.Position, reverse bool) (string, bundles.Position, bool, error) {
 	hunks, err := readHunks(ctx, p.repo, p.requestedCommit, commit, path, reverse)
 	if err != nil {
 		return "", bundles.Position{}, false, err
@@ -47,7 +54,8 @@ func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path 
 	return path, adjusted, ok, nil
 }
 
-func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path string, rx bundles.Range, reverse bool) (string, bundles.Range, bool, error) {
+// TODO - document
+func (p *positionAdjuster) AdjustRange(ctx context.Context, commit, path string, rx bundles.Range, reverse bool) (string, bundles.Range, bool, error) {
 	hunks, err := readHunks(ctx, p.repo, p.requestedCommit, commit, path, reverse)
 	if err != nil {
 		return "", bundles.Range{}, false, err
@@ -57,6 +65,7 @@ func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path str
 	return path, adjusted, ok, nil
 }
 
+// TODO - document
 func readHunks(ctx context.Context, repo *types.Repo, sourceCommit, targetCommit, path string, reverse bool) ([]*diff.Hunk, error) {
 	if sourceCommit == targetCommit {
 		return nil, nil
@@ -70,7 +79,9 @@ func readHunks(ctx context.Context, repo *types.Repo, sourceCommit, targetCommit
 	if reverse {
 		sourceCommit, targetCommit = targetCommit, sourceCommit
 	}
-	reader, err := git.ExecReader(ctx, *cachedRepo, []string{"diff", sourceCommit, targetCommit, "--", path}) // TODO - cache this
+
+	// TODO(efritz) - cache diff results
+	reader, err := git.ExecReader(ctx, *cachedRepo, []string{"diff", sourceCommit, targetCommit, "--", path})
 	if err != nil {
 		return nil, err
 	}
