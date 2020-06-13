@@ -60,7 +60,7 @@ func NewQueryResolver(
 
 func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
 	for i := range r.uploads {
-		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character})
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character}, false)
 		if err != nil {
 			return nil, err
 		}
@@ -81,10 +81,12 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 			adjustedCommit := locations[i].Dump.Commit
 			adjustedRange := locations[i].Range
 			if locations[i].Dump.RepositoryID == r.repositoryID {
-				var err error
-				adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, locations[i].Dump.Commit, locations[i].Path, locations[i].Range)
+				ac, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, locations[i].Dump.Commit, locations[i].Path, locations[i].Range, true)
 				if err != nil {
 					return nil, err
+				}
+				if ok {
+					adjustedCommit, adjustedRange = ac, ar
 				}
 			}
 
@@ -119,7 +121,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 	var allLocations []codeintelapi.ResolvedLocation
 	for i := range r.uploads {
-		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character})
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character}, false)
 		if err != nil {
 			return nil, "", err
 		}
@@ -175,10 +177,12 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 		adjustedCommit := allLocations[i].Dump.Commit
 		adjustedRange := allLocations[i].Range
 		if allLocations[i].Dump.RepositoryID == r.repositoryID {
-			var err error
-			adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range)
+			ac, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range, true)
 			if err != nil {
 				return nil, "", err
+			}
+			if ok {
+				adjustedCommit, adjustedRange = ac, ar
 			}
 		}
 
@@ -195,7 +199,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
 	for i := range r.uploads {
-		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character})
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character}, false)
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -211,7 +215,7 @@ func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string,
 			continue
 		}
 
-		adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, r.path, rn)
+		_, adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, r.path, rn, true)
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -234,7 +238,7 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 	totalCount := 0
 	var allDiagnostics []codeintelapi.ResolvedDiagnostic
 	for i := range r.uploads {
-		adjustedPath, ok, err := r.positionAdjuster.AdjustPath(ctx, r.uploads[i].Commit, r.path)
+		adjustedPath, ok, err := r.positionAdjuster.AdjustPath(ctx, r.uploads[i].Commit, r.path, false)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -266,10 +270,12 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 		adjustedCommit := allDiagnostics[i].Dump.Commit
 		adjustedRange := clientRange
 		if allDiagnostics[i].Dump.RepositoryID == r.repositoryID {
-			var err error
-			adjustedCommit, adjustedRange, err = r.positionAdjuster.AdjustLocation(ctx, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange)
+			ac, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange, true)
 			if err != nil {
 				return nil, 0, err
+			}
+			if ok {
+				adjustedCommit, adjustedRange = ac, ar
 			}
 		}
 

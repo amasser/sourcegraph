@@ -15,13 +15,9 @@ import (
 )
 
 type PositionAdjuster interface {
-	// In
-	AdjustPath(ctx context.Context, commit, path string) (string, bool, error)
-	AdjustPosition(ctx context.Context, commit, path string, px bundles.Position) (string, bundles.Position, bool, error)
-
-	// Out
-	AdjustRange(ctx context.Context, commit, path string, rx bundles.Range) (bundles.Range, bool, error)
-	AdjustLocation(ctx context.Context, commit, path string, rx bundles.Range) (string, bundles.Range, error)
+	AdjustPath(ctx context.Context, commit, path string, reverse bool) (string, bool, error)
+	AdjustPosition(ctx context.Context, commit, path string, px bundles.Position, reverse bool) (string, bundles.Position, bool, error)
+	AdjustRange(ctx context.Context, commit, path string, rx bundles.Range, reverse bool) (string, bundles.Range, bool, error)
 }
 
 type realPositionAdjuster struct {
@@ -36,12 +32,17 @@ func NewPositionAdjuster(repo *types.Repo, requestedCommit string) PositionAdjus
 	}
 }
 
-func (p *realPositionAdjuster) AdjustPath(ctx context.Context, commit, path string) (string, bool, error) {
+func (p *realPositionAdjuster) AdjustPath(ctx context.Context, commit, path string, reverse bool) (string, bool, error) {
 	return path, true, nil
 }
 
-func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path string, px bundles.Position) (string, bundles.Position, bool, error) {
-	adjuster, err := newPositionAdjuster(ctx, p.repo, p.requestedCommit, commit, path)
+func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path string, px bundles.Position, reverse bool) (string, bundles.Position, bool, error) {
+	a, b := p.requestedCommit, commit
+	if reverse {
+		a, b = b, a
+	}
+
+	adjuster, err := newPositionAdjuster(ctx, p.repo, a, b, path)
 	if err != nil {
 		return "", bundles.Position{}, false, err
 	}
@@ -50,29 +51,22 @@ func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path 
 	return path, bundles.Position{Line: adjusted.Line, Character: adjusted.Character}, ok, nil
 }
 
-func (p *realPositionAdjuster) AdjustLocation(ctx context.Context, commit, path string, rx bundles.Range) (string, bundles.Range, error) {
-	adjuster, err := newPositionAdjuster(ctx, p.repo, commit, p.requestedCommit, path)
+func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path string, rx bundles.Range, reverse bool) (string, bundles.Range, bool, error) {
+	a, b := p.requestedCommit, commit
+	if reverse {
+		a, b = b, a
+	}
+
+	adjuster, err := newPositionAdjuster(ctx, p.repo, a, b, path)
 	if err != nil {
-		return "", bundles.Range{}, err
+		return "", bundles.Range{}, false, err
 	}
 
 	if adjusted, ok := adjuster.adjustRange(convertRange(rx)); ok {
-		return p.requestedCommit, bundles.Range{Start: bundles.Position{Line: adjusted.Start.Line, Character: adjusted.Start.Character}, End: bundles.Position{Line: adjusted.End.Line, Character: adjusted.End.Character}}, nil
+		return p.requestedCommit, bundles.Range{Start: bundles.Position{Line: adjusted.Start.Line, Character: adjusted.Start.Character}, End: bundles.Position{Line: adjusted.End.Line, Character: adjusted.End.Character}}, true, nil
 	}
 
-	// Couldn't adjust range, return original result which is precise but
-	// jump the user to another into another commit context on navigation.
-	return commit, rx, nil
-}
-
-func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path string, rx bundles.Range) (bundles.Range, bool, error) {
-	adjuster, err := newPositionAdjuster(ctx, p.repo, commit, p.requestedCommit, path)
-	if err != nil {
-		return bundles.Range{}, false, err
-	}
-
-	adjusted, ok := adjuster.adjustRange(convertRange(rx))
-	return bundles.Range{Start: bundles.Position{Line: adjusted.Start.Line, Character: adjusted.Start.Character}, End: bundles.Position{Line: adjusted.End.Line, Character: adjusted.End.Character}}, ok, nil
+	return "", bundles.Range{}, false, err
 }
 
 //
