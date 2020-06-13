@@ -7,6 +7,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
+// TODO - document
 type IndexesResolver struct {
 	store store.Store
 	opts  store.GetIndexesOptions
@@ -18,10 +19,12 @@ type IndexesResolver struct {
 	err        error
 }
 
+// TODO - document
 func NewIndexesResolver(store store.Store, opts store.GetIndexesOptions) *IndexesResolver {
 	return &IndexesResolver{store: store, opts: opts}
 }
 
+// TODO - document
 func (r *IndexesResolver) Resolve(ctx context.Context) error {
 	r.once.Do(func() { r.err = r.resolve(ctx) })
 	return r.err

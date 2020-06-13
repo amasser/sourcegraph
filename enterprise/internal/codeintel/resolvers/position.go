@@ -13,9 +13,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/vcs/git"
 )
 
-//
-// TODO - ok srsly cache this stuff
-//
+// TODO - document, test
 
 type PositionAdjuster interface {
 	AdjustPath(ctx context.Context, commit, path string, reverse bool) (string, bool, error)
@@ -36,7 +34,7 @@ func NewPositionAdjuster(repo *types.Repo, requestedCommit string) PositionAdjus
 }
 
 func (p *realPositionAdjuster) AdjustPath(ctx context.Context, commit, path string, reverse bool) (string, bool, error) {
-	return path, true, nil // TODO - adjust path
+	return path, true, nil
 }
 
 func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path string, px bundles.Position, reverse bool) (string, bundles.Position, bool, error) {
@@ -46,7 +44,7 @@ func (p *realPositionAdjuster) AdjustPosition(ctx context.Context, commit, path 
 	}
 
 	adjusted, ok := adjustPosition(hunks, px)
-	return path, adjusted, ok, nil // TODO - adjust path
+	return path, adjusted, ok, nil
 }
 
 func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path string, rx bundles.Range, reverse bool) (string, bundles.Range, bool, error) {
@@ -56,22 +54,29 @@ func (p *realPositionAdjuster) AdjustRange(ctx context.Context, commit, path str
 	}
 
 	adjusted, ok := adjustRange(hunks, rx)
-	return path, adjusted, ok, nil // TODO - adjust path
+	return path, adjusted, ok, nil
 }
-
-//
-// TODO - cache hunks somehow
-//
 
 func readHunks(ctx context.Context, repo *types.Repo, sourceCommit, targetCommit, path string, reverse bool) ([]*diff.Hunk, error) {
 	if sourceCommit == targetCommit {
 		return nil, nil
 	}
+
+	cachedRepo, err := backend.CachedGitRepo(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+
 	if reverse {
 		sourceCommit, targetCommit = targetCommit, sourceCommit
 	}
+	reader, err := git.ExecReader(ctx, *cachedRepo, []string{"diff", sourceCommit, targetCommit, "--", path}) // TODO - cache this
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
 
-	output, err := readDiff(ctx, repo, sourceCommit, targetCommit, path)
+	output, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -84,22 +89,6 @@ func readHunks(ctx context.Context, repo *types.Repo, sourceCommit, targetCommit
 		return nil, err
 	}
 	return diff.Hunks, nil
-}
-
-// readDiff returns the output git diff between the source and target commits for the given path.
-func readDiff(ctx context.Context, repo *types.Repo, sourceCommit, targetCommit, path string) ([]byte, error) {
-	cachedRepo, err := backend.CachedGitRepo(ctx, repo)
-	if err != nil {
-		return nil, err
-	}
-
-	reader, err := git.ExecReader(ctx, *cachedRepo, []string{"diff", sourceCommit, targetCommit, "--", path})
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	return ioutil.ReadAll(reader)
 }
 
 func adjustRange(hunks []*diff.Hunk, r bundles.Range) (bundles.Range, bool) {
@@ -135,14 +124,15 @@ func adjustPosition(hunks []*diff.Hunk, pos bundles.Position) (bundles.Position,
 		return pos, true
 	}
 
-	return adjustPositionFromHunk(hunks[i-1], pos)
-}
+	hunk := hunks[i-1]
+	// 	return adjustPositionFromHunk(hunk, pos)
+	// }
 
-// adjustPositionFromHunk transforms the given position in the original file into a position
-// in the new file according to the given git diff hunk. This parameter is expected to be the
-// last such hunk in the diff between the original and the new file that does not begin after
-// the given position in the original file.
-func adjustPositionFromHunk(hunk *diff.Hunk, pos bundles.Position) (bundles.Position, bool) {
+	// // adjustPositionFromHunk transforms the given position in the original file into a position
+	// // in the new file according to the given git diff hunk. This parameter is expected to be the
+	// // last such hunk in the diff between the original and the new file that does not begin after
+	// // the given position in the original file.
+	// func adjustPositionFromHunk(hunk *diff.Hunk, pos bundles.Position) (bundles.Position, bool) {
 	// LSP Positions are zero-indexed; the output of git diff is one-indexed
 	line := pos.Line + 1
 

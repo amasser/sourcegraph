@@ -7,6 +7,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
+// TODO - document
 type UploadsResolver struct {
 	store store.Store
 	opts  store.GetUploadsOptions
@@ -18,10 +19,12 @@ type UploadsResolver struct {
 	err        error
 }
 
+// TODO - document
 func NewUploadsResolver(store store.Store, opts store.GetUploadsOptions) *UploadsResolver {
 	return &UploadsResolver{store: store, opts: opts}
 }
 
+// TODO - document
 func (r *UploadsResolver) Resolve(ctx context.Context) error {
 	r.once.Do(func() { r.err = r.resolve(ctx) })
 	return r.err

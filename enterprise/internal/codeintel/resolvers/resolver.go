@@ -42,16 +42,7 @@ func (r *Resolver) IndexConnectionResolver(opts store.GetIndexesOptions) *Indexe
 }
 
 func (r *Resolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
-	getTipCommit := func(repositoryID int) (string, error) {
-		tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
-		if err != nil {
-			return "", errors.Wrap(err, "gitserver.Head")
-		}
-		return tipCommit, nil
-	}
-
-	// TODO - modify this type to take a context
-	_, err := r.store.DeleteUploadByID(ctx, uploadID, getTipCommit)
+	_, err := r.store.DeleteUploadByID(ctx, uploadID, r.getTipCommit)
 	return err
 }
 
@@ -60,6 +51,7 @@ func (r *Resolver) DeleteIndexByID(ctx context.Context, id int) error {
 	return err
 }
 
+// TODO - document
 func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (*QueryResolver, error) {
 	repo := args.Repository.Type()
 	repositoryID := int(repo.ID)
@@ -73,4 +65,14 @@ func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataA
 
 	positionAdjuster := NewPositionAdjuster(repo, commit)
 	return NewQueryResolver(r.store, r.bundleManagerClient, r.codeIntelAPI, positionAdjuster, repositoryID, commit, path, dumps), nil
+}
+
+// TODO - document
+func (r *Resolver) getTipCommit(ctx context.Context, repositoryID int) (string, error) {
+	tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
+	if err != nil {
+		return "", errors.Wrap(err, "gitserver.Head")
+	}
+
+	return tipCommit, nil
 }

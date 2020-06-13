@@ -59,8 +59,10 @@ func NewQueryResolver(
 }
 
 func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
+	position := bundles.Position{Line: line, Character: character}
+
 	for i := range r.uploads {
-		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character}, false)
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, position, false)
 		if err != nil {
 			return nil, err
 		}
@@ -76,35 +78,15 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 			continue
 		}
 
-		adjustedLocations := make([]AdjustedLocation, 0, len(locations))
-		for i := range locations {
-			adjustedCommit := locations[i].Dump.Commit
-			adjustedRange := locations[i].Range
-			if locations[i].Dump.RepositoryID == r.repositoryID {
-				_, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, locations[i].Dump.Commit, locations[i].Path, locations[i].Range, true)
-				if err != nil {
-					return nil, err
-				}
-				if ok {
-					adjustedCommit, adjustedRange = locations[i].Dump.Commit, ar
-				}
-			}
-
-			adjustedLocations = append(adjustedLocations, AdjustedLocation{
-				Dump:           locations[i].Dump,
-				Path:           locations[i].Path,
-				AdjustedCommit: adjustedCommit,
-				AdjustedRange:  convertRange(adjustedRange),
-			})
-		}
-
-		return adjustedLocations, nil
+		return r.adjustLocations(ctx, locations)
 	}
 
 	return nil, nil
 }
 
 func (r *QueryResolver) References(ctx context.Context, line, character, limit int, rawCursor string) ([]AdjustedLocation, string, error) {
+	position := bundles.Position{Line: line, Character: character}
+
 	// Decode a map of upload ids to the next url that serves
 	// the new page of results. This may not include an entry
 	// for every upload if their result sets have already been
@@ -121,14 +103,6 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 
 	var allLocations []codeintelapi.ResolvedLocation
 	for i := range r.uploads {
-		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character}, false)
-		if err != nil {
-			return nil, "", err
-		}
-		if !ok {
-			continue
-		}
-
 		rawCursor := ""
 		if cursor, ok := cursors[r.uploads[i].ID]; ok {
 			rawCursor = cursor
@@ -139,31 +113,27 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 			continue
 		}
 
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, position, false)
+		if err != nil {
+			return nil, "", err
+		}
+		if !ok {
+			continue
+		}
+
 		cursor, err := codeintelapi.DecodeOrCreateCursor(adjustedPath, adjustedPosition.Line, adjustedPosition.Character, r.uploads[i].ID, rawCursor, r.store, r.bundleManagerClient)
 		if err != nil {
 			return nil, "", err
 		}
 
-		locations, newCursor, hasNewCursor, err := r.codeIntelAPI.References(
-			ctx,
-			r.repositoryID,
-			r.commit,
-			limit,
-			cursor,
-		)
+		locations, newCursor, hasNewCursor, err := r.codeIntelAPI.References(ctx, r.repositoryID, r.commit, limit, cursor)
 		if err != nil {
 			return nil, "", err
 		}
 
-		cx := ""
-		if hasNewCursor {
-			cx = codeintelapi.EncodeCursor(newCursor)
-		}
-
 		allLocations = append(allLocations, locations...)
-
-		if cx != "" {
-			newCursors[r.uploads[i].ID] = cx
+		if hasNewCursor {
+			newCursors[r.uploads[i].ID] = codeintelapi.EncodeCursor(newCursor)
 		}
 	}
 
@@ -172,34 +142,19 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 		return nil, "", err
 	}
 
-	adjustedLocations := make([]AdjustedLocation, 0, len(allLocations))
-	for i := range allLocations {
-		adjustedCommit := allLocations[i].Dump.Commit
-		adjustedRange := allLocations[i].Range
-		if allLocations[i].Dump.RepositoryID == r.repositoryID {
-			_, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range, true)
-			if err != nil {
-				return nil, "", err
-			}
-			if ok {
-				adjustedCommit, adjustedRange = allLocations[i].Dump.Commit, ar
-			}
-		}
-
-		adjustedLocations = append(adjustedLocations, AdjustedLocation{
-			Dump:           allLocations[i].Dump,
-			Path:           allLocations[i].Path,
-			AdjustedCommit: adjustedCommit,
-			AdjustedRange:  convertRange(adjustedRange),
-		})
+	adjustedLocations, err := r.adjustLocations(ctx, allLocations)
+	if err != nil {
+		return nil, "", err
 	}
 
 	return adjustedLocations, endCursor, nil
 }
 
 func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
+	position := bundles.Position{Line: line, Character: character}
+
 	for i := range r.uploads {
-		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, bundles.Position{Line: line, Character: character}, false)
+		adjustedPath, adjustedPosition, ok, err := r.positionAdjuster.AdjustPosition(ctx, r.uploads[i].Commit, r.path, position, false)
 		if err != nil {
 			return "", lsp.Range{}, false, err
 		}
@@ -215,20 +170,18 @@ func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string,
 			continue
 		}
 
-		_, adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, r.path, rn, true)
-		if err != nil {
+		if _, adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, r.uploads[i].Commit, r.path, rn, true); err != nil {
 			return "", lsp.Range{}, false, err
-		}
-		if !ok {
-			// Failed to adjust range. This _might_ happen in cases where the LSIF range
-			// spans multiple lines which intersect a diff; the hover position on an earlier
-			// line may not be edited, but the ending line of the expression may have been
-			// edited or removed. This is rare and unfortunate, and we'll skip the result
-			// in this case because we have low confidence that it will be rendered correctly.
-			continue
+		} else if ok {
+			return text, convertRange(adjustedRange), true, nil
 		}
 
-		return text, convertRange(adjustedRange), true, nil
+		// Failed to adjust range. This _might_ happen in cases where the LSIF range
+		// spans multiple lines which intersect a diff; the hover position on an earlier
+		// line may not be edited, but the ending line of the expression may have been
+		// edited or removed. This is rare and unfortunate, and we'll skip the result
+		// in this case because we have low confidence that it will be rendered correctly.
+		continue
 	}
 
 	return "", lsp.Range{}, false, nil
@@ -267,16 +220,9 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 			End:   client.Position{Line: allDiagnostics[i].Diagnostic.StartCharacter, Character: allDiagnostics[i].Diagnostic.EndCharacter},
 		}
 
-		adjustedCommit := allDiagnostics[i].Dump.Commit
-		adjustedRange := clientRange
-		if allDiagnostics[i].Dump.RepositoryID == r.repositoryID {
-			_, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange, true)
-			if err != nil {
-				return nil, 0, err
-			}
-			if ok {
-				adjustedCommit, adjustedRange = allDiagnostics[i].Dump.Commit, ar
-			}
+		adjustedCommit, adjustedRange, err := r.adjustRange(ctx, allDiagnostics[i].Dump.RepositoryID, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange)
+		if err != nil {
+			return nil, 0, err
 		}
 
 		adjustedDiagnostics = append(adjustedDiagnostics, AdjustedDiagnostic{
@@ -288,6 +234,37 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 	}
 
 	return adjustedDiagnostics, totalCount, nil
+}
+
+func (r *QueryResolver) adjustLocations(ctx context.Context, locations []codeintelapi.ResolvedLocation) ([]AdjustedLocation, error) {
+	adjustedLocations := make([]AdjustedLocation, 0, len(locations))
+	for i := range locations {
+		adjustedCommit, adjustedRange, err := r.adjustRange(ctx, locations[i].Dump.RepositoryID, locations[i].Dump.Commit, locations[i].Path, locations[i].Range)
+		if err != nil {
+			return nil, err
+		}
+
+		adjustedLocations = append(adjustedLocations, AdjustedLocation{
+			Dump:           locations[i].Dump,
+			Path:           locations[i].Path,
+			AdjustedCommit: adjustedCommit,
+			AdjustedRange:  convertRange(adjustedRange),
+		})
+	}
+
+	return adjustedLocations, nil
+}
+
+func (r *QueryResolver) adjustRange(ctx context.Context, repositoryID int, commit, path string, rx bundles.Range) (string, bundles.Range, error) {
+	if repositoryID == r.repositoryID {
+		if _, adjustedRange, ok, err := r.positionAdjuster.AdjustRange(ctx, commit, path, rx, true); err != nil {
+			return "", bundles.Range{}, err
+		} else if ok {
+			return r.commit, adjustedRange, nil
+		}
+	}
+
+	return commit, rx, nil
 }
 
 // readCursor decodes a cursor into a map from upload ids to URLs that

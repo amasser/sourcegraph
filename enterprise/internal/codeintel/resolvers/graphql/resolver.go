@@ -20,6 +20,7 @@ type Resolver struct {
 	locationResolver *CachedLocationResolver
 }
 
+// TODO - document
 func NewResolver(resolver *resolvers.Resolver) gql.CodeIntelResolver {
 	return &Resolver{
 		resolver:         resolver,
@@ -42,6 +43,7 @@ func (r *Resolver) LSIFUploadByID(ctx context.Context, id graphql.ID) (gql.LSIFU
 }
 
 func (r *Resolver) LSIFUploads(ctx context.Context, args *gql.LSIFUploadsQueryArgs) (gql.LSIFUploadConnectionResolver, error) {
+	// TODO - document
 	return r.LSIFUploadsByRepo(ctx, &gql.LSIFRepositoryUploadsQueryArgs{LSIFUploadsQueryArgs: args})
 }
 
@@ -87,6 +89,7 @@ func (r *Resolver) LSIFIndexByID(ctx context.Context, id graphql.ID) (gql.LSIFIn
 }
 
 func (r *Resolver) LSIFIndexes(ctx context.Context, args *gql.LSIFIndexesQueryArgs) (gql.LSIFIndexConnectionResolver, error) {
+	// TODO - document
 	return r.LSIFIndexesByRepo(ctx, &gql.LSIFRepositoryIndexesQueryArgs{LSIFIndexesQueryArgs: args})
 }
 
@@ -169,6 +172,7 @@ func makeGetIndexesOptions(ctx context.Context, args *gql.LSIFRepositoryIndexesQ
 	}, nil
 }
 
+// TODO - document
 func resolveRepositoryID(ctx context.Context, id graphql.ID) (int, error) {
 	if id == "" {
 		return 0, nil

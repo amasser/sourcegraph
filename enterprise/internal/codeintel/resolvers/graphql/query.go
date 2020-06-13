@@ -23,6 +23,7 @@ type QueryResolver struct {
 	locationResolver *CachedLocationResolver
 }
 
+// TODO - document
 func NewQueryResolver(resolver *resolvers.QueryResolver, locationResolver *CachedLocationResolver) gql.GitBlobLSIFDataResolver {
 	return &QueryResolver{
 		resolver:         resolver,
