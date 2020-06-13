@@ -81,12 +81,12 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 			adjustedCommit := locations[i].Dump.Commit
 			adjustedRange := locations[i].Range
 			if locations[i].Dump.RepositoryID == r.repositoryID {
-				ac, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, locations[i].Dump.Commit, locations[i].Path, locations[i].Range, true)
+				_, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, locations[i].Dump.Commit, locations[i].Path, locations[i].Range, true)
 				if err != nil {
 					return nil, err
 				}
 				if ok {
-					adjustedCommit, adjustedRange = ac, ar
+					adjustedCommit, adjustedRange = locations[i].Dump.Commit, ar
 				}
 			}
 
@@ -177,12 +177,12 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 		adjustedCommit := allLocations[i].Dump.Commit
 		adjustedRange := allLocations[i].Range
 		if allLocations[i].Dump.RepositoryID == r.repositoryID {
-			ac, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range, true)
+			_, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allLocations[i].Dump.Commit, allLocations[i].Path, allLocations[i].Range, true)
 			if err != nil {
 				return nil, "", err
 			}
 			if ok {
-				adjustedCommit, adjustedRange = ac, ar
+				adjustedCommit, adjustedRange = allLocations[i].Dump.Commit, ar
 			}
 		}
 
@@ -270,12 +270,12 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 		adjustedCommit := allDiagnostics[i].Dump.Commit
 		adjustedRange := clientRange
 		if allDiagnostics[i].Dump.RepositoryID == r.repositoryID {
-			ac, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange, true)
+			_, ar, ok, err := r.positionAdjuster.AdjustRange(ctx, allDiagnostics[i].Dump.Commit, allDiagnostics[i].Diagnostic.Path, clientRange, true)
 			if err != nil {
 				return nil, 0, err
 			}
 			if ok {
-				adjustedCommit, adjustedRange = ac, ar
+				adjustedCommit, adjustedRange = allDiagnostics[i].Dump.Commit, ar
 			}
 		}
 
