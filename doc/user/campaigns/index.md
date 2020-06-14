@@ -54,32 +54,60 @@ Use the filters to switch between showing all campaigns, open campaigns, or clos
 
 If you lack read access to a repository in a campaign, you can only see [limited information about the changes to that repository](managing_access.md#repository-permissions-for-campaigns) (and not the repository name, file paths, or diff).
 
-## Creating a new campaign
+### Campaign specs
 
-> **Creating your first campaign?** See [Hello World Campaign](TODO) in Sourcegraph Guides for step-by-step instructions.
+You can create or update a campaign from a [**campaign spec**](spec_reference.md), which is a YAML file that defines a campaign.
 
-1. Click the <img src="campaigns-icon.svg" alt="Campaigns icon" /> campaigns icon in the top navigation bar.
-1. Click the **＋ New campaign** button.
-1. Type a name for your campaign. The name will be the title of each changeset (e.g., the pull request title).
-1. Type an optional description, which will be the description or body of each changeset.
-1. Click the **Create campaign** button.
+See the "[Creating a campaign](#creating-a-campaign)" section for an example campaign spec YAML file.
 
-You've created a new campaign, but it doesn't have any changes yet. Next, you can [apply a campaign template to specify what changes to make](#using-a-campaign-template-to-generate-changes).
+For more information, see:
 
-If the changesets were already created (outside of campaigns), you can [track existing changesets](#tracking-existing-changesets) in your campaign.
+- [Creating a campaign](#creating-a-campaign) from a campaign spec
+- [Updating a campaign](#updating-a-campaign) from a campaign spec
+- [Campaign spec YAML reference](spec_reference.md)
+- [Example campaign specs](examples/index.md)
 
-## Using a campaign template to generate changes
+## Creating a campaign
 
-After you've [created a campaign](#creating-a-new-campaign), you need to tell it what changes to make by writing a [**campaign template**](template.md), which defines
+> **Creating your first campaign?** See [Hello World Campaign](hello_world_campaign.md) in Sourcegraph Guides for step-by-step instructions.
 
-- The set of repositories to change
-- Commands to run in each repository to make the changes
+You can create a campaign from a [campaign spec](#campaign-specs), which is a YAML file that describes your campaign.
 
-When a campaign template is executed, it produces a **campaign spec**, which is the full list of changesets, branches, and commits that you want to exist.
+The following example campaign spec adds "Hello World" to all `README.md` files:
 
-> **Don't worry!** Before any branches are pushed or changesets (e.g., GitHub pull requests) are created, you will see a preview of all changes and can confirm each one before it's published.
+```yaml
+name: hello-world
+description: Add Hello World to READMEs
 
-1. In your editor, create a [campaign template](template.md) (`*.campaign.yml` file) for the change you'd like to make. (See [examples](examples/index.md).)
+# Find all repositories that contain a README.md file.
+on:
+  - repositoriesMatchingQuery: file:README.md
+
+# In each repository, run this command. Each repository's resulting diff is captured.
+steps:
+  - run: echo Hello World | tee -a $(find -name README.md)
+    container: alpine:3
+
+# Describe the changeset (e.g., GitHub pull request) you want for each repository.
+changesetTemplate:
+  title: Hello World
+  body: My first campaign!
+  branch: hello-world # Push the commit to this branch.
+  commit:
+    message: Append Hello World to all README.md files
+  published: false
+```
+
+1. Create a campaign from the campaign spec:
+
+    <pre><code>src campaign apply -f <em>YOUR_CAMPAIGN_SPEC.campaign.yaml</em> -preview</code></pre>
+
+    > **Don't worry!** Before any branches are pushed or changesets (e.g., GitHub pull requests) are created, you will see a preview of all changes and can confirm each one before it's published.
+1. Wait for it to run and compute the changes for each repository (using the repositories and commands in the campaign spec).
+1. Open the preview URL that the command printed out.
+1. Examine the preview. Confirm that the changes are what you intended. (If not, edit the campaign spec and then rerun the command above.)
+1. Click the **Create campaign** button. TODO(sqs)
+
 1. Click the <img src="campaigns-icon.svg" alt="Campaigns icon" /> campaigns icon in the top navigation bar.
 1. In the list of campaigns, click the campaign where you'd like to apply the template.
 1. In the campaign, click the **Update template** button.
@@ -106,6 +134,19 @@ The [example campaigns](examples/index.md) show how to use campaigns to make use
 - [Using ESLint to automatically migrate to a new TypeScript version](examples/eslint_typescript_version.md)
 - [Adding a GitHub action to upload LSIF data to Sourcegraph](examples/lsif_action.md)
 - [Refactoring Go code using Comby](examples/refactor_go_comby.md)
+
+## Creating an empty campaign on the web
+
+1. Click the <img src="campaigns-icon.svg" alt="Campaigns icon" /> campaigns icon in the top navigation bar.
+1. Click the **＋ New campaign** button.
+1. Type a name for your campaign.
+1. Type an optional description.
+1. Click the **Create campaign** button.
+
+You've created a new campaign, but it's empty (it has no changesets). Next, you can:
+
+- [Update the campaign's spec to create new changesets](#creating-and-updating-a-campaign)
+- [Track existing changesets](#tracking-existing-changesets)
 
 ## Publishing changesets to the code host
 
@@ -229,11 +270,14 @@ Site admins can also:
 ## Concepts
 
 - A **campaign** is group of related changes to code, along with a title and description.
-- A **campaign spec** is a "record of intent". The campaign will constantly work to ensure that changesets exist as described in the campaign spec. By setting a campaign's spec, you're declaring your desired state of the world.
-- You could write campaign specs manually, writing out all of the unified diffs you'd like to apply. But that's tedious. Your intent is higher-level, such as "lint files in all repositories with a `package.json` file". A **campaign template** lets you describe how to generate a campaign spec (by selecting repositories and running commands in each one).
 - The campaign has associated **changesets**, which is a generic term for pull requests, merge requests, or any other reviewable chunk of code. (Code hosts use different terms for this, which is why we chose a generic term.)
-- Initially a changeset is **unpublished** and is not actually pushed to or created on the code host.
-- You **publish** a changeset when you're ready to push the branch and create the changeset on the code host.
+- A **published changeset** means the commit, branch, and changeset have been created on the code host. An **unpublished changeset** is just a preview that you can view in the campaign but does not exist on the code host yet.
+- A **spec** (campaign spec or changeset spec) is a "record of intent". When you provide a spec for a thing, the system will continuously try to reconcile the actual thing with your desired intent (as described by the spec). This involves creating, updating, and deleting things as needed.
+- A [**campaign spec**](campaign_spec.md) is a YAML file describing the campaign: repositories to change, commands to run, and a template for changesets and commits. You describe your high-level intent in the campaign spec, such as "lint files in all repositories with a `package.json` file".
+- A campaign has many **changeset specs**, which are produced by executing the campaign spec (i.e., running the commands on each selected repository) and then using its changeset template to produce a list of changesets, including the diffs, commit messages, changeset title, and changeset body. You don't need to view or edit the raw changeset specs; you will edit the campaign spec and view the changesets in the UI.
+- The **campaign controller** reconciles the actual state of the campaign's changesets on the code host so that they match your desired intent (as described in the changeset specs).
+
+To learn about the internals of campaigns, see "[Campaigns](../../dev/campaigns_development.md)" in the developer documentation.
 
 ## Roadmap
 
@@ -246,5 +290,5 @@ Site admins can also:
 - The only supported code hosts are GitHub and Bitbucket Server. Support for [all other code hosts](../../admin/external_service/index.md) is planned.
 - It is not yet possible for a campaign to have multiple changesets in a single repository (e.g., to make changes to multiple subtrees in a monorepo).
 - Forking a repository and creating a pull request on the fork is not yet supported. Because of this limitation, you need write access to each repository that your campaign will change (in order to push a branch to it).
-
+- Campaign steps are run locally (in the [Sourcegraph CLI](https://github.com/sourcegraph/src-cli)). Sourcegraph does not yet support executing campaign steps (which can be arbitrary commands) on the server. For this reason, the APIs for creating and updating a campaign require you to upload all of the changeset specs (which are produced by executing the campaign spec locally). {#server-execution}
 
