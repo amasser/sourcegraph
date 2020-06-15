@@ -16,51 +16,61 @@ import (
 // with GraphQL/API specifics (auth, validation, marshaling, etc.). This resolver is wrapped
 // by a symmetrics resolver in this package's graphql subpackage, which is exposed directly
 // by the API.
-type Resolver struct {
+type Resolver interface {
+	GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error)
+	GetIndexByID(ctx context.Context, id int) (store.Index, bool, error)
+	UploadConnectionResolver(opts store.GetUploadsOptions) *UploadsResolver
+	IndexConnectionResolver(opts store.GetIndexesOptions) *IndexesResolver
+	DeleteUploadByID(ctx context.Context, uploadID int) error
+	DeleteIndexByID(ctx context.Context, id int) error
+	QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (QueryResolver, error)
+}
+
+type resolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
 }
 
-// NewResolver creates a new Resolver with the given services.
-func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) *Resolver {
-	return &Resolver{
+// NewResolver creates a new resolver with the given services.
+func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) Resolver {
+	return &resolver{
 		store:               store,
 		bundleManagerClient: bundleManagerClient,
 		codeIntelAPI:        codeIntelAPI,
 	}
 }
 
-func (r *Resolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
+func (r *resolver) GetUploadByID(ctx context.Context, id int) (store.Upload, bool, error) {
 	return r.store.GetUploadByID(ctx, id)
 }
 
-func (r *Resolver) GetIndexByID(ctx context.Context, id int) (store.Index, bool, error) {
+func (r *resolver) GetIndexByID(ctx context.Context, id int) (store.Index, bool, error) {
 	return r.store.GetIndexByID(ctx, id)
 }
 
-func (r *Resolver) UploadConnectionResolver(opts store.GetUploadsOptions) *UploadsResolver {
+func (r *resolver) UploadConnectionResolver(opts store.GetUploadsOptions) *UploadsResolver {
 	return NewUploadsResolver(r.store, opts)
 }
 
-func (r *Resolver) IndexConnectionResolver(opts store.GetIndexesOptions) *IndexesResolver {
+func (r *resolver) IndexConnectionResolver(opts store.GetIndexesOptions) *IndexesResolver {
 	return NewIndexesResolver(r.store, opts)
 }
 
-func (r *Resolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
+func (r *resolver) DeleteUploadByID(ctx context.Context, uploadID int) error {
 	_, err := r.store.DeleteUploadByID(ctx, uploadID, r.getTipCommit)
 	return err
 }
 
-func (r *Resolver) DeleteIndexByID(ctx context.Context, id int) error {
+func (r *resolver) DeleteIndexByID(ctx context.Context, id int) error {
 	_, err := r.store.DeleteIndexByID(ctx, id)
 	return err
 }
 
 // QueryResolver determines the set of dumps that can answer code intel queries for the
-// given repository, commit, and path, then constructs a new QueryResolver instance which
+// given repository, commit, and path, then constructs a new query resolver instance which
 // can be used to answer subsequent queries.
-func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (*QueryResolver, error) {
+func (r *resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (QueryResolver, error) {
 	repo := args.Repository.Type()
 	repositoryID := int(repo.ID)
 	commit := string(args.Commit)
@@ -77,7 +87,7 @@ func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataA
 
 // getTipCommit returns the head of the default branch for the given repository. This
 // is used to recalculate the set of visible dumps for a repository on dump deletion.
-func (r *Resolver) getTipCommit(ctx context.Context, repositoryID int) (string, error) {
+func (r *resolver) getTipCommit(ctx context.Context, repositoryID int) (string, error) {
 	tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
 	if err != nil {
 		return "", errors.Wrap(err, "gitserver.Head")

@@ -22,14 +22,14 @@ var ErrIllegalLimit = errors.New("illegal limit")
 // All code intel-specific behavior is delegated to the underlying resolver instance, which is defined
 // in the parent package.
 type QueryResolver struct {
-	resolver         *resolvers.QueryResolver
+	resolver         resolvers.QueryResolver
 	locationResolver *CachedLocationResolver
 }
 
 // NewQueryResolver creates a new QueryResolver with the given resolver that defines all code intel-specific
 // behavior. A cached location resolver instance is also given to the query resolver, which should be used
 // to resolve all location-related values.
-func NewQueryResolver(resolver *resolvers.QueryResolver, locationResolver *CachedLocationResolver) gql.GitBlobLSIFDataResolver {
+func NewQueryResolver(resolver resolvers.QueryResolver, locationResolver *CachedLocationResolver) gql.GitBlobLSIFDataResolver {
 	return &QueryResolver{
 		resolver:         resolver,
 		locationResolver: locationResolver,

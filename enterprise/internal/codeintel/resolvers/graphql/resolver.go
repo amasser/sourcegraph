@@ -19,12 +19,12 @@ const DefaultIndexPageSize = 50
 // All code intel-specific behavior is delegated to the underlying resolver instance, which is defined
 // in the parent package.
 type Resolver struct {
-	resolver         *resolvers.Resolver
+	resolver         resolvers.Resolver
 	locationResolver *CachedLocationResolver
 }
 
 // NewResolver creates a new Resolver with the given resolver that defines all code intel-specific behavior.
-func NewResolver(resolver *resolvers.Resolver) gql.CodeIntelResolver {
+func NewResolver(resolver resolvers.Resolver) gql.CodeIntelResolver {
 	return &Resolver{
 		resolver:         resolver,
 		locationResolver: NewCachedLocationResolver(),

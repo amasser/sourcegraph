@@ -34,7 +34,14 @@ type AdjustedDiagnostic struct {
 // GraphQL/API specifics (auth, validation, marshaling, etc.). This resolver is wrapped by a
 // symmetrics resolver in this package's graphql subpackage, which is exposed directly by the
 // API.
-type QueryResolver struct {
+type QueryResolver interface {
+	Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error)
+	References(ctx context.Context, line, character, limit int, rawCursor string) ([]AdjustedLocation, string, error)
+	Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error)
+	Diagnostics(ctx context.Context, limit int) ([]AdjustedDiagnostic, int, error)
+}
+
+type queryResolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
@@ -45,7 +52,7 @@ type QueryResolver struct {
 	uploads             []store.Dump
 }
 
-// NewQueryResolver create a new QueryResolver with the given services. The methods of this
+// NewQueryResolver create a new query resolver with the given services. The methods of this
 // struct return queries for the given repository, commit, and path, and will query only the
 // bundles associated with the given dump objects.
 func NewQueryResolver(
@@ -57,8 +64,8 @@ func NewQueryResolver(
 	commit string,
 	path string,
 	uploads []store.Dump,
-) *QueryResolver {
-	return &QueryResolver{
+) QueryResolver {
+	return &queryResolver{
 		store:               store,
 		bundleManagerClient: bundleManagerClient,
 		codeIntelAPI:        codeIntelAPI,
@@ -74,7 +81,7 @@ func NewQueryResolver(
 // This may include remote definitions if the remote repository is also indexed. If there are multiple
 // bundles associated with this resolver, the definitions from the first bundle with any results will
 // be returned.
-func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
+func (r *queryResolver) Definitions(ctx context.Context, line, character int) ([]AdjustedLocation, error) {
 	position := bundles.Position{Line: line, Character: character}
 
 	for i := range r.uploads {
@@ -103,7 +110,7 @@ func (r *QueryResolver) Definitions(ctx context.Context, line, character int) ([
 // References returns the list of source locations that reference the symbol at the given position.
 // This may include references from other dumps and repositories. If there are multiple bundles
 // associated with this resolver, results from all bundles will be concatenated and returned.
-func (r *QueryResolver) References(ctx context.Context, line, character, limit int, rawCursor string) ([]AdjustedLocation, string, error) {
+func (r *queryResolver) References(ctx context.Context, line, character, limit int, rawCursor string) ([]AdjustedLocation, string, error) {
 	position := bundles.Position{Line: line, Character: character}
 
 	// Decode a map of upload ids to the next url that serves
@@ -172,7 +179,7 @@ func (r *QueryResolver) References(ctx context.Context, line, character, limit i
 // Hover returns the hover text and range for the symbol at the given position. If there are
 // multiple bundles associated with this resolver, the hover text and range from the first
 // bundle with any results will be returned.
-func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
+func (r *queryResolver) Hover(ctx context.Context, line, character int) (string, lsp.Range, bool, error) {
 	position := bundles.Position{Line: line, Character: character}
 
 	for i := range r.uploads {
@@ -212,7 +219,7 @@ func (r *QueryResolver) Hover(ctx context.Context, line, character int) (string,
 // Diagnostics returns the diagnostics for documents with the given path prefix. If there are
 // multiple bundles associated with this resolver, results from all bundles will be concatenated
 // and returned.
-func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedDiagnostic, int, error) {
+func (r *queryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedDiagnostic, int, error) {
 	totalCount := 0
 	var allDiagnostics []codeintelapi.ResolvedDiagnostic
 	for i := range r.uploads {
@@ -263,7 +270,7 @@ func (r *QueryResolver) Diagnostics(ctx context.Context, limit int) ([]AdjustedD
 
 // adjustLocations translates a list of resolved locations (relative to the indexed commit) into a list of
 // equivalent locations in the requested commit.
-func (r *QueryResolver) adjustLocations(ctx context.Context, locations []codeintelapi.ResolvedLocation) ([]AdjustedLocation, error) {
+func (r *queryResolver) adjustLocations(ctx context.Context, locations []codeintelapi.ResolvedLocation) ([]AdjustedLocation, error) {
 	adjustedLocations := make([]AdjustedLocation, 0, len(locations))
 	for i := range locations {
 		adjustedCommit, adjustedRange, err := r.adjustRange(ctx, locations[i].Dump.RepositoryID, locations[i].Dump.Commit, locations[i].Path, locations[i].Range)
@@ -283,7 +290,7 @@ func (r *QueryResolver) adjustLocations(ctx context.Context, locations []codeint
 }
 
 // adjustRange translates a range (relative to the indexed commit) into an equivalent range in the requested commit.
-func (r *QueryResolver) adjustRange(ctx context.Context, repositoryID int, commit, path string, rx bundles.Range) (string, bundles.Range, error) {
+func (r *queryResolver) adjustRange(ctx context.Context, repositoryID int, commit, path string, rx bundles.Range) (string, bundles.Range, error) {
 	if repositoryID != r.repositoryID {
 		// No diffs exist for translation between repos
 		return commit, rx, nil

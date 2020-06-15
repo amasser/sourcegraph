@@ -17,6 +17,10 @@ import (
 // times during execution. This cache reduces the number duplicate of database and gitserver queries for
 // definition, reference, and diagnostic queries, which return collections of results that often refer
 // to a small set of repositories, commits, and paths with a large multiplicity.
+//
+// This resolver maintains a hierarchy of caches as a way to decrease lock contention. Resolution of a
+// repository holds the top-level lock. Resolution of a commit holds a lock associated with the parent
+// repository. Similarly, resolution of a path holds a lock associated with the parent commit.
 type CachedLocationResolver struct {
 	sync.RWMutex
 	children map[api.RepoID]*cachedRepositoryResolver
@@ -34,6 +38,7 @@ type cachedCommitResolver struct {
 	children map[string]*gql.GitTreeEntryResolver
 }
 
+// NewCachedLocationResolver creates a location resolver with an empty cache.
 func NewCachedLocationResolver() *CachedLocationResolver {
 	return &CachedLocationResolver{
 		children: map[api.RepoID]*cachedRepositoryResolver{},
@@ -53,7 +58,7 @@ func (r *CachedLocationResolver) Repository(ctx context.Context, id api.RepoID) 
 // return a nil resolver if the commit is not known by gitserver.
 func (r *CachedLocationResolver) Commit(ctx context.Context, id api.RepoID, commit string) (*gql.GitCommitResolver, error) {
 	cachedCommitResolver, err := r.cachedCommit(ctx, id, commit)
-	if err != nil {
+	if err != nil || cachedCommitResolver == nil {
 		return nil, err
 	}
 	return cachedCommitResolver.resolver, nil
@@ -133,7 +138,12 @@ func (r *CachedLocationResolver) cachedCommit(ctx context.Context, id api.RepoID
 	if err != nil {
 		return nil, err
 	}
-	cachedResolver := &cachedCommitResolver{resolver: resolver, children: map[string]*gql.GitTreeEntryResolver{}}
+	// No path can be resolved without - ensure value written to the cache is
+	// nil and not a nil resolver wrapped in a non-nil cached commit resolver.
+	var cachedResolver *cachedCommitResolver
+	if resolver != nil {
+		cachedResolver = &cachedCommitResolver{resolver: resolver, children: map[string]*gql.GitTreeEntryResolver{}}
+	}
 	parentResolver.children[commit] = cachedResolver
 	return cachedResolver, nil
 }
@@ -211,17 +221,6 @@ func (r *CachedLocationResolver) resolvePath(ctx context.Context, commitResolver
 	return gql.NewGitTreeEntryResolver(commitResolver, gql.CreateFileInfo(path, true)), nil
 }
 
-// resolveLocation creates a LocationResolver for the given adjusted location. This function may return a
-// nil resolver if the location's commit is not known by gitserver.
-func resolveLocation(ctx context.Context, locationResolver *CachedLocationResolver, location resolvers.AdjustedLocation) (gql.LocationResolver, error) {
-	treeResolver, err := locationResolver.Path(ctx, api.RepoID(location.Dump.RepositoryID), location.AdjustedCommit, location.Path)
-	if err != nil || treeResolver == nil {
-		return nil, err
-	}
-
-	return gql.NewLocationResolver(treeResolver, &location.AdjustedRange), nil
-}
-
 // resolveLocations creates a slide of LocationResolvers for the given list of adjusted locations. The
 // resulting list may be smaller than the the input list as any locations with a commit not known by
 // gitserver will be skipped.
@@ -240,4 +239,15 @@ func resolveLocations(ctx context.Context, locationResolver *CachedLocationResol
 	}
 
 	return resolvedLocations, nil
+}
+
+// resolveLocation creates a LocationResolver for the given adjusted location. This function may return a
+// nil resolver if the location's commit is not known by gitserver.
+func resolveLocation(ctx context.Context, locationResolver *CachedLocationResolver, location resolvers.AdjustedLocation) (gql.LocationResolver, error) {
+	treeResolver, err := locationResolver.Path(ctx, api.RepoID(location.Dump.RepositoryID), location.AdjustedCommit, location.Path)
+	if err != nil || treeResolver == nil {
+		return nil, err
+	}
+
+	return gql.NewLocationResolver(treeResolver, &location.AdjustedRange), nil
 }

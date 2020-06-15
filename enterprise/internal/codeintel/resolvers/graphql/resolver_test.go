@@ -7,20 +7,82 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	graphql "github.com/graph-gophers/graphql-go"
+	"github.com/sourcegraph/sourcegraph/cmd/frontend/backend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/db"
 	gql "github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/graphqlbackend/graphqlutil"
 	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
+	resolvermocks "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/resolvers/mocks"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
+//
+// TODO - test other methods?
+//
+
 func TestDeleteLSIFUpload(t *testing.T) {
-	// TODO - test
+	t.Cleanup(func() {
+		db.Mocks.Users.GetByCurrentAuthUser = nil
+	})
+	db.Mocks.Users.GetByCurrentAuthUser = func(ctx context.Context) (*types.User, error) {
+		return &types.User{SiteAdmin: true}, nil
+	}
+
+	id := graphql.ID(base64.StdEncoding.EncodeToString([]byte("LSIFUpload:42")))
+	mockResolver := resolvermocks.NewMockResolver()
+
+	if _, err := NewResolver(mockResolver).DeleteLSIFUpload(context.Background(), id); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if len(mockResolver.DeleteUploadByIDFunc.History()) != 1 {
+		t.Fatalf("unexpected call count. want=%d have=%d", 1, len(mockResolver.DeleteUploadByIDFunc.History()))
+	}
+	if val := mockResolver.DeleteUploadByIDFunc.History()[0].Arg1; val != 42 {
+		t.Fatalf("unexpected upload id. want=%d have=%d", 42, val)
+	}
+}
+
+func TestDeleteLSIFUploadUnauthenticated(t *testing.T) {
+	id := graphql.ID(base64.StdEncoding.EncodeToString([]byte("LSIFUpload:42")))
+	mockResolver := resolvermocks.NewMockResolver()
+
+	if _, err := NewResolver(mockResolver).DeleteLSIFUpload(context.Background(), id); err != backend.ErrNotAuthenticated {
+		t.Errorf("unexpected error. want=%q have=%q", backend.ErrNotAuthenticated, err)
+	}
 }
 
 func TestDeleteLSIFIndex(t *testing.T) {
-	// TODO - test
+	t.Cleanup(func() {
+		db.Mocks.Users.GetByCurrentAuthUser = nil
+	})
+	db.Mocks.Users.GetByCurrentAuthUser = func(ctx context.Context) (*types.User, error) {
+		return &types.User{SiteAdmin: true}, nil
+	}
+
+	id := graphql.ID(base64.StdEncoding.EncodeToString([]byte("LSIFIndex:42")))
+	mockResolver := resolvermocks.NewMockResolver()
+
+	if _, err := NewResolver(mockResolver).DeleteLSIFIndex(context.Background(), id); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if len(mockResolver.DeleteIndexByIDFunc.History()) != 1 {
+		t.Fatalf("unexpected call count. want=%d have=%d", 1, len(mockResolver.DeleteIndexByIDFunc.History()))
+	}
+	if val := mockResolver.DeleteIndexByIDFunc.History()[0].Arg1; val != 42 {
+		t.Fatalf("unexpected index id. want=%d have=%d", 42, val)
+	}
+}
+
+func TestDeleteLSIFIndexUnauthenticated(t *testing.T) {
+	id := graphql.ID(base64.StdEncoding.EncodeToString([]byte("LSIFIndex:42")))
+	mockResolver := resolvermocks.NewMockResolver()
+
+	if _, err := NewResolver(mockResolver).DeleteLSIFIndex(context.Background(), id); err != backend.ErrNotAuthenticated {
+		t.Errorf("unexpected error. want=%q have=%q", backend.ErrNotAuthenticated, err)
+	}
 }
 
 func TestMakeGetUploadsOptions(t *testing.T) {
