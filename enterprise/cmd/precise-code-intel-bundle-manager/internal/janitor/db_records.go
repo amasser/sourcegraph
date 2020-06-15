@@ -44,7 +44,8 @@ func (j *Janitor) removeProcessedUploadsWithoutBundleFile() error {
 	return nil
 }
 
-// TODO - document
+// getTipCommit returns the head of the default branch for the given repository. This
+// is used to recalculate the set of visible dumps for a repository on dump deletion.
 func (j *Janitor) getTipCommit(ctx context.Context, repositoryID int) (string, error) {
 	tipCommit, err := gitserver.Head(ctx, j.store, repositoryID)
 	if err != nil && !isRepoNotExist(err) {

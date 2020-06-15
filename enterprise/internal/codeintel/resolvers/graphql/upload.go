@@ -32,7 +32,7 @@ func (r *UploadResolver) Failure() *string          { return r.upload.FailureMes
 func (r *UploadResolver) StartedAt() *gql.DateTime  { return gql.DateTimeOrNil(r.upload.StartedAt) }
 func (r *UploadResolver) FinishedAt() *gql.DateTime { return gql.DateTimeOrNil(r.upload.FinishedAt) }
 func (r *UploadResolver) InputIndexer() string      { return r.upload.Indexer }
-func (r *UploadResolver) PlaceInQueue() *int32      { return int32Ptr(r.upload.Rank) }
+func (r *UploadResolver) PlaceInQueue() *int32      { return toInt32(r.upload.Rank) }
 
 func (r *UploadResolver) ProjectRoot(ctx context.Context) (*gql.GitTreeEntryResolver, error) {
 	return r.locationResolver.Path(ctx, api.RepoID(r.upload.RepositoryID), r.upload.Commit, r.upload.Root)

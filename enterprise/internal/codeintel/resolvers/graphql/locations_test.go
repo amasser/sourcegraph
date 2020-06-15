@@ -143,3 +143,11 @@ func TestCachedLocationResolver(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveLocation(t *testing.T) {
+	// TODO - test
+}
+
+func TestResolveLocations(t *testing.T) {
+	// TODO - test
+}

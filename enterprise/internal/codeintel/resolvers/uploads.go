@@ -7,7 +7,8 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
-// TODO - document
+// UploadsResolver wraps store.GetUploads so that the underlying function can be
+// invoked lazily and its results memoized.
 type UploadsResolver struct {
 	store store.Store
 	opts  store.GetUploadsOptions
@@ -19,12 +20,15 @@ type UploadsResolver struct {
 	err        error
 }
 
-// TODO - document
+// NewUploadsResolver creates a new UploadsResolver which wil invoke store.GetUploads
+// with the given options.
 func NewUploadsResolver(store store.Store, opts store.GetUploadsOptions) *UploadsResolver {
 	return &UploadsResolver{store: store, opts: opts}
 }
 
-// TODO - document
+// Resolve ensures that store.GetUploads has been invoked. This function returns the
+// error from the invocation, if any. If the error is nil, then the resolver's Uploads,
+// TotalCount, and NextOffset fields will be populated.
 func (r *UploadsResolver) Resolve(ctx context.Context) error {
 	r.once.Do(func() { r.err = r.resolve(ctx) })
 	return r.err

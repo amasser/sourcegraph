@@ -11,14 +11,18 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
-// TODO - document
+// Resolver is the main interface to code intel-related operations exposed to the GraphQL API.
+// This resolver consolidates the logic for code intel operations and is not itself concerned
+// with GraphQL/API specifics (auth, validation, marshaling, etc.). This resolver is wrapped
+// by a symmetrics resolver in this package's graphql subpackage, which is exposed directly
+// by the API.
 type Resolver struct {
 	store               store.Store
 	bundleManagerClient bundles.BundleManagerClient
 	codeIntelAPI        codeintelapi.CodeIntelAPI
 }
 
-// TODO - document
+// NewResolver creates a new Resolver with the given services.
 func NewResolver(store store.Store, bundleManagerClient bundles.BundleManagerClient, codeIntelAPI codeintelapi.CodeIntelAPI) *Resolver {
 	return &Resolver{
 		store:               store,
@@ -53,7 +57,9 @@ func (r *Resolver) DeleteIndexByID(ctx context.Context, id int) error {
 	return err
 }
 
-// TODO - document
+// QueryResolver determines the set of dumps that can answer code intel queries for the
+// given repository, commit, and path, then constructs a new QueryResolver instance which
+// can be used to answer subsequent queries.
 func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataArgs) (*QueryResolver, error) {
 	repo := args.Repository.Type()
 	repositoryID := int(repo.ID)
@@ -69,7 +75,8 @@ func (r *Resolver) QueryResolver(ctx context.Context, args *gql.GitBlobLSIFDataA
 	return NewQueryResolver(r.store, r.bundleManagerClient, r.codeIntelAPI, positionAdjuster, repositoryID, commit, path, dumps), nil
 }
 
-// TODO - document
+// getTipCommit returns the head of the default branch for the given repository. This
+// is used to recalculate the set of visible dumps for a repository on dump deletion.
 func (r *Resolver) getTipCommit(ctx context.Context, repositoryID int) (string, error) {
 	tipCommit, err := gitserver.Head(ctx, r.store, repositoryID)
 	if err != nil {

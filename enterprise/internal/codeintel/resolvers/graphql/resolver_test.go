@@ -15,7 +15,13 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/api"
 )
 
-// TODO - test resolver
+func TestDeleteLSIFUpload(t *testing.T) {
+	// TODO - test
+}
+
+func TestDeleteLSIFIndex(t *testing.T) {
+	// TODO - test
+}
 
 func TestMakeGetUploadsOptions(t *testing.T) {
 	t.Cleanup(func() {

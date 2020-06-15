@@ -36,12 +36,12 @@ func (r *UploadConnectionResolver) TotalCount(ctx context.Context) (*int32, erro
 	if err := r.resolver.Resolve(ctx); err != nil {
 		return nil, err
 	}
-	return int32Ptr(&r.resolver.TotalCount), nil
+	return toInt32(&r.resolver.TotalCount), nil
 }
 
 func (r *UploadConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
 	if err := r.resolver.Resolve(ctx); err != nil {
 		return nil, err
 	}
-	return encodeIntCursor(int32Ptr(r.resolver.NextOffset)), nil
+	return encodeIntCursor(toInt32(r.resolver.NextOffset)), nil
 }

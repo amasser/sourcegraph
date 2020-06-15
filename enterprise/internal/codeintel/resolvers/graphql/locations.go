@@ -12,7 +12,11 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/vcs/git"
 )
 
-// TODO - document
+// CachedLocationResolver resolves repositories, commits, and git tree entries and caches the resulting
+// resolvers so that the same request does not re-resolve the same repository, commit, or path multiple
+// times during execution. This cache reduces the number duplicate of database and gitserver queries for
+// definition, reference, and diagnostic queries, which return collections of results that often refer
+// to a small set of repositories, commits, and paths with a large multiplicity.
 type CachedLocationResolver struct {
 	sync.RWMutex
 	children map[api.RepoID]*cachedRepositoryResolver
@@ -36,8 +40,7 @@ func NewCachedLocationResolver() *CachedLocationResolver {
 	}
 }
 
-// TODO - test
-// TODO - document
+// Repository resolves the repository with the given identifier.
 func (r *CachedLocationResolver) Repository(ctx context.Context, id api.RepoID) (*gql.RepositoryResolver, error) {
 	cachedRepositoryResolver, err := r.cachedRepository(ctx, id)
 	if err != nil {
@@ -46,7 +49,8 @@ func (r *CachedLocationResolver) Repository(ctx context.Context, id api.RepoID) 
 	return cachedRepositoryResolver.resolver, nil
 }
 
-// TODO - document
+// Commit resolves the git commit with the given repository identifier and commit hash. This method may
+// return a nil resolver if the commit is not known by gitserver.
 func (r *CachedLocationResolver) Commit(ctx context.Context, id api.RepoID, commit string) (*gql.GitCommitResolver, error) {
 	cachedCommitResolver, err := r.cachedCommit(ctx, id, commit)
 	if err != nil {
@@ -55,7 +59,8 @@ func (r *CachedLocationResolver) Commit(ctx context.Context, id api.RepoID, comm
 	return cachedCommitResolver.resolver, nil
 }
 
-// TODO - document
+// Path resolves the git tree entry with the given repository identifier, commit hash, and relative path.
+// This method may return a nil resolver if the commit is not known by gitserver.
 func (r *CachedLocationResolver) Path(ctx context.Context, id api.RepoID, commit, path string) (*gql.GitTreeEntryResolver, error) {
 	pathResolver, err := r.cachedPath(ctx, id, commit, path)
 	if err != nil {
@@ -64,7 +69,11 @@ func (r *CachedLocationResolver) Path(ctx context.Context, id api.RepoID, commit
 	return pathResolver, nil
 }
 
-// TODO - document
+// cachedRepository resolves the repository with the given identifier if the resulting resolver does not
+// already exist in the cache. The cache is tested/populated with double-checked locking, which ensures
+// that the resolver is created exactly once per GraphQL request.
+//
+// See https://en.wikipedia.org/wiki/Double-checked_locking.
 func (r *CachedLocationResolver) cachedRepository(ctx context.Context, id api.RepoID) (*cachedRepositoryResolver, error) {
 	// Fast-path cache check
 	r.RLock()
@@ -92,7 +101,11 @@ func (r *CachedLocationResolver) cachedRepository(ctx context.Context, id api.Re
 	return cachedResolver, nil
 }
 
-// TODO - document
+// cachedCommit resolves the commit with the given repository identifier and commit hash if the resulting
+// resolver does not already exist in the cache. The cache is tested/populated with double-checked locking,
+// which ensures that the resolver is created exactly once per GraphQL request.
+//
+// See https://en.wikipedia.org/wiki/Double-checked_locking.
 func (r *CachedLocationResolver) cachedCommit(ctx context.Context, id api.RepoID, commit string) (*cachedCommitResolver, error) {
 	parentResolver, err := r.cachedRepository(ctx, id)
 	if err != nil {
@@ -125,7 +138,11 @@ func (r *CachedLocationResolver) cachedCommit(ctx context.Context, id api.RepoID
 	return cachedResolver, nil
 }
 
-// TODO - document
+// cachedPath resolves the commit with the given repository identifier, commit hash, and relative path
+// if the resulting resolver does not already exist in the cache. The cache is tested/populated with
+// double-checked locking, which ensures that the resolver is created exactly once per GraphQL request.
+//
+// See https://en.wikipedia.org/wiki/Double-checked_locking.
 func (r *CachedLocationResolver) cachedPath(ctx context.Context, id api.RepoID, commit, path string) (*gql.GitTreeEntryResolver, error) {
 	parentResolver, err := r.cachedCommit(ctx, id, commit)
 	if err != nil || parentResolver == nil {
@@ -157,7 +174,8 @@ func (r *CachedLocationResolver) cachedPath(ctx context.Context, id api.RepoID, 
 	return resolver, nil
 }
 
-// TODO - document
+// Repository resolves the repository with the given identifier. This method must be called only when
+// constructing a resolver to populate the cache.
 func (r *CachedLocationResolver) resolveRepository(ctx context.Context, id api.RepoID) (*gql.RepositoryResolver, error) {
 	repo, err := backend.Repos.Get(ctx, id)
 	if err != nil {
@@ -167,7 +185,9 @@ func (r *CachedLocationResolver) resolveRepository(ctx context.Context, id api.R
 	return gql.NewRepositoryResolver(repo), nil
 }
 
-// TODO - document
+// Commit resolves the git commit with the given repository resolver and commit hash. This method may
+// return a nil resolver if the commit is not known by gitserver. This method must be called only when
+// constructing a resolver to populate the cache.
 func (r *CachedLocationResolver) resolveCommit(ctx context.Context, repositoryResolver *gql.RepositoryResolver, commit string) (*gql.GitCommitResolver, error) {
 	gitserverRepo, err := backend.CachedGitRepo(ctx, repositoryResolver.Type())
 	if err != nil {
@@ -185,13 +205,14 @@ func (r *CachedLocationResolver) resolveCommit(ctx context.Context, repositoryRe
 	return repositoryResolver.CommitFromID(ctx, &gql.RepositoryCommitArgs{Rev: commit}, commitID)
 }
 
-// TODO - document
+// Path resolves the git tree entry with the given commit resolver and relative path. This method must be
+// called only when constructing a resolver to populate the cache.
 func (r *CachedLocationResolver) resolvePath(ctx context.Context, commitResolver *gql.GitCommitResolver, path string) (*gql.GitTreeEntryResolver, error) {
 	return gql.NewGitTreeEntryResolver(commitResolver, gql.CreateFileInfo(path, true)), nil
 }
 
-// TODO - test
-// TODO - document
+// resolveLocation creates a LocationResolver for the given adjusted location. This function may return a
+// nil resolver if the location's commit is not known by gitserver.
 func resolveLocation(ctx context.Context, locationResolver *CachedLocationResolver, location resolvers.AdjustedLocation) (gql.LocationResolver, error) {
 	treeResolver, err := locationResolver.Path(ctx, api.RepoID(location.Dump.RepositoryID), location.AdjustedCommit, location.Path)
 	if err != nil || treeResolver == nil {
@@ -201,8 +222,9 @@ func resolveLocation(ctx context.Context, locationResolver *CachedLocationResolv
 	return gql.NewLocationResolver(treeResolver, &location.AdjustedRange), nil
 }
 
-// TODO - test
-// TODO - document
+// resolveLocations creates a slide of LocationResolvers for the given list of adjusted locations. The
+// resulting list may be smaller than the the input list as any locations with a commit not known by
+// gitserver will be skipped.
 func resolveLocations(ctx context.Context, locationResolver *CachedLocationResolver, locations []resolvers.AdjustedLocation) ([]gql.LocationResolver, error) {
 	resolvedLocations := make([]gql.LocationResolver, 0, len(locations))
 	for i := range locations {

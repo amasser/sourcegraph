@@ -43,7 +43,7 @@ func TestCursorEmpty(t *testing.T) {
 
 func TestIntCursor(t *testing.T) {
 	expected := 42
-	pageInfo := encodeIntCursor(int32Ptr(&expected))
+	pageInfo := encodeIntCursor(toInt32(&expected))
 
 	if !pageInfo.HasNextPage() {
 		t.Fatalf("expected next page")

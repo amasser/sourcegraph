@@ -7,7 +7,8 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
-// TODO - document
+// IndexesResolver wraps store.GetIndexes so that the underlying function can be
+// invoked lazily and its results memoized.
 type IndexesResolver struct {
 	store store.Store
 	opts  store.GetIndexesOptions
@@ -19,12 +20,15 @@ type IndexesResolver struct {
 	err        error
 }
 
-// TODO - document
+// NewIndexesResolver creates a new IndexesResolver which wil invoke store.GetIndexes
+// with the given options.
 func NewIndexesResolver(store store.Store, opts store.GetIndexesOptions) *IndexesResolver {
 	return &IndexesResolver{store: store, opts: opts}
 }
 
-// TODO - document
+// Resolve ensures that store.GetIndexes has been invoked. This function returns the
+// error from the invocation, if any. If the error is nil, then the resolver's Indexes,
+// TotalCount, and NextOffset fields will be populated.
 func (r *IndexesResolver) Resolve(ctx context.Context) error {
 	r.once.Do(func() { r.err = r.resolve(ctx) })
 	return r.err

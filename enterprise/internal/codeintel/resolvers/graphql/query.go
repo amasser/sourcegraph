@@ -17,13 +17,18 @@ const DefaultDiagnosticsPageSize = 100
 // ErrIllegalLimit occurs when the user requests less than one object per page.
 var ErrIllegalLimit = errors.New("illegal limit")
 
-// TODO - document
+// QueryResolver is the main interface to bundle-related operations exposed to the GraphQL API. This
+// resolver concerns itself with GraphQL/API-specific behaviors (auth, validation, marshaling, etc.).
+// All code intel-specific behavior is delegated to the underlying resolver instance, which is defined
+// in the parent package.
 type QueryResolver struct {
 	resolver         *resolvers.QueryResolver
 	locationResolver *CachedLocationResolver
 }
 
-// TODO - document
+// NewQueryResolver creates a new QueryResolver with the given resolver that defines all code intel-specific
+// behavior. A cached location resolver instance is also given to the query resolver, which should be used
+// to resolve all location-related values.
 func NewQueryResolver(resolver *resolvers.QueryResolver, locationResolver *CachedLocationResolver) gql.GitBlobLSIFDataResolver {
 	return &QueryResolver{
 		resolver:         resolver,
@@ -44,7 +49,7 @@ func (r *QueryResolver) Definitions(ctx context.Context, args *gql.LSIFQueryPosi
 }
 
 func (r *QueryResolver) References(ctx context.Context, args *gql.LSIFPagedQueryPositionArgs) (gql.LocationConnectionResolver, error) {
-	limit := int32Default(args.First, DefaultReferencesPageSize)
+	limit := derefInt32(args.First, DefaultReferencesPageSize)
 	if limit <= 0 {
 		return nil, ErrIllegalLimit
 	}
@@ -71,7 +76,7 @@ func (r *QueryResolver) Hover(ctx context.Context, args *gql.LSIFQueryPositionAr
 }
 
 func (r *QueryResolver) Diagnostics(ctx context.Context, args *gql.LSIFDiagnosticsArgs) (gql.DiagnosticConnectionResolver, error) {
-	limit := int32Default(args.First, DefaultDiagnosticsPageSize)
+	limit := derefInt32(args.First, DefaultDiagnosticsPageSize)
 	if limit <= 0 {
 		return nil, ErrIllegalLimit
 	}
